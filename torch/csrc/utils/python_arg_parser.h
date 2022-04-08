@@ -273,6 +273,10 @@ inline PythonArgs PythonArgParser::parse(PyObject* self, ParsedArgs<0>& dst) {
 }
 
 inline bool PythonArgs::has_torch_function(){
+  if (torch::should_skip_torch_function()) {
+    return false;
+  }
+
   return !this->signature.overloaded_args.empty() ||
       (torch::torch_function_enabled() &&
        at::impl::PythonTorchFunctionTLS::get_mode());
