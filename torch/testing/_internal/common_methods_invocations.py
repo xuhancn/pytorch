@@ -772,14 +772,9 @@ class OpInfo(object):
         # NOTE: backward dtypes must be acquired before forward dtypes
         #   since they fallback to explicit (not implicit!) specifications of
         #   forward dtypes
-        self.backward_dtypes = set(self.backward_dtypes) if self.backward_dtypes is not None else self.dtypes
         self.backward_dtypesIfCPU = set(self.backward_dtypesIfCPU) if self.backward_dtypesIfCPU is not None else (
             self.backward_dtypes if self.backward_dtypes is not None
             else self.dtypesIfCPU if self.dtypesIfCPU is not None
-            else self.dtypes)
-        self.backward_dtypesIfCUDA = set(self.backward_dtypesIfCUDA) if self.backward_dtypesIfCUDA is not None else (
-            self.backward_dtypes if self.backward_dtypes is not None
-            else self.dtypesIfCUDA if self.dtypesIfCUDA is not None
             else self.dtypes)
         self.backward_dtypesIfROCM = set(self.backward_dtypesIfROCM) if self.backward_dtypesIfROCM is not None else (
             self.backward_dtypesIfCUDA if self.backward_dtypesIfCUDA is not None
@@ -787,12 +782,18 @@ class OpInfo(object):
             else self.dtypesIfROCM if self.dtypesIfROCM is not None
             else self.dtypesIfCUDA if self.dtypesIfCUDA is not None
             else self.dtypes)
+        self.backward_dtypesIfCUDA = set(self.backward_dtypesIfCUDA) if self.backward_dtypesIfCUDA is not None else (
+            self.backward_dtypes if self.backward_dtypes is not None
+            else self.dtypesIfCUDA if self.dtypesIfCUDA is not None
+            else self.dtypes)
+        self.backward_dtypes = set(self.backward_dtypes) if self.backward_dtypes is not None else self.dtypes
 
         self.dtypesIfCPU = set(self.dtypesIfCPU) if self.dtypesIfCPU is not None else self.dtypes
         self.dtypesIfCUDA = set(self.dtypesIfCUDA) if self.dtypesIfCUDA is not None else self.dtypes
         self.dtypesIfROCM = set(self.dtypesIfROCM) if self.dtypesIfROCM is not None else self.dtypesIfCUDA
 
-        self._default_test_dtypes = set(self.default_test_dtypes) if self.default_test_dtypes is not None else None
+        if self.default_test_dtypes is not None:
+            self.default_test_dtypes = set(self.default_test_dtypes)
 
         # NOTE: if the op is unspecified it is assumed to be under the torch namespace
         if not self.op:
@@ -1039,8 +1040,8 @@ class OpInfo(object):
         not supported by the device.
         """
         supported = self.supported_dtypes(device_type)
-        return (supported if self._default_test_dtypes is None
-                else supported.intersection(self._default_test_dtypes))
+        return (supported if self.default_test_dtypes is None
+                else supported.intersection(self.default_test_dtypes))
 
     @property
     def formatted_name(self):
