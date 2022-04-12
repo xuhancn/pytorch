@@ -574,7 +574,7 @@ class OpInfo(object):
     # explicitly specifies the inplace variant of the operator
     # if _NOTHING (default), the method variant will be autopopulated
     # if None, then the OpInfo specifies no method variant
-    inplace_variant: Callable =_NOTHING
+    inplace_variant: Callable = _NOTHING
 
     # the following metadata are test directives for skipping or modifying tests
 
