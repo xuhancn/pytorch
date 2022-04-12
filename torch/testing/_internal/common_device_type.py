@@ -725,7 +725,7 @@ class ops(_TestParametrizer):
             elif self.opinfo_dtypes == OpDTypes.supported:
                 dtypes = op.supported_dtypes(device_cls.device_type)
             elif self.opinfo_dtypes == OpDTypes.basic:
-                dtypes = op.default_test_dtypes(device_cls.device_type)
+                dtypes = op.get_default_test_dtypes(device_cls.device_type)
             elif self.opinfo_dtypes == OpDTypes.any_one:
                 # Arbitrary order
                 dtype_order = (

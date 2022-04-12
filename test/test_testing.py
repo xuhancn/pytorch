@@ -1466,7 +1466,7 @@ class TestTestParametrizationDeviceType(TestCase):
         device_cls = locals()['TestParametrized{}'.format(device.upper())]
         expected_test_names = []
         for op in op_db:
-            for dtype in op.default_test_dtypes(device):
+            for dtype in op.get_default_test_dtypes(device):
                 for flag_part in ('flag_disabled', 'flag_enabled'):
                     expected_name = '{}.test_op_parametrized_{}_{}_{}_{}'.format(
                         device_cls.__name__, op.formatted_name, flag_part, device, dtype_name(dtype))

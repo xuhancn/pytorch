@@ -1,3 +1,4 @@
+from ast import Call
 from functools import wraps, partial
 from itertools import product, chain, islice
 import itertools
@@ -14,7 +15,8 @@ import numpy as np
 from torch._six import inf
 import collections.abc
 
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, Iterable
+from dataclasses import dataclass, InitVar
 
 from torch.testing import make_tensor
 from torch.testing._internal.common_dtype import (
@@ -541,9 +543,358 @@ NumericsFilter = collections.namedtuple('NumericsFilter', ['condition', 'safe_va
 #
 
 # Classes and methods for the operator database
+@dataclass
 class OpInfo(object):
     """Operator information and helper functions for acquiring it."""
 
+    # the string name of the function
+    name: str
+
+    # An optional reference function that accepts ndarrays (AKA "NumPy arrays").
+    # If given, the op will be compared with its reference on each of its sample inputs.
+    # the following metadata describes the operator, its variants, and its aliases, if any
+    ref: Callable = None
+
+    # iterable of aliases, e.g. ("absolute",) for torch.abs
+    aliases: InitVar[Iterable] = None
+
+    # additional string to include in the test name
+    # this is useful when an op needs multiple OpInfos,
+    # like divide does, often because it's really several
+    # different ops behind the scenes
+    variant_test_name: str = ''
+
+    # the function variant of the operation, populated as torch.<name> if None
+    op: Callable = None
+
+    # explicitly specifies the method variant of the operator
+    # if _NOTHING (default), the method variant will be autopopulated
+    # if None, then the OpInfo specifies no method variant
+    method_variant: InitVar = _NOTHING
+
+    # explicitly specifies the inplace variant of the operator
+    # if _NOTHING (default), the method variant will be autopopulated
+    # if None, then the OpInfo specifies no method variant
+    inplace_variant: InitVar =_NOTHING
+
+    # the following metadata are test directives for skipping or modifying tests
+
+    # information about which tests to skip
+    skips: Tuple = tuple()
+
+    # decorators to apply to generated tests
+    decorators: InitVar[Tuple] = tuple()
+
+    # the following are pointers to functions to generate certain classes of inputs
+
+    # function to generate sample inputs with strided layouts
+    sample_inputs_func: InitVar[Callable] = None
+
+    # function to generate a more thorough set of samples inputs with strided layouts
+    reference_inputs_func: InitVar[Callable] = None
+
+    # function to generate inputs that will throw errors
+    error_inputs_func: InitVar[Callable] = None
+
+    # function to generate sample inputs with sparse coo layouts
+    sample_inputs_sparse_coo_func: InitVar[Callable] = None
+
+    # function to generate sample inputs with sparse csr layouts
+    sample_inputs_sparse_csr_func: InitVar[Callable] = None
+
+    # the following metadata relates to dtype support and is tested for correctness in test_ops.py
+
+    # dtypes this function works with on the CPU,
+    # inherited by other device types that don't specify their own dtypes
+    dtypes: InitVar[List[_dispatch_dtypes]] = None
+
+    # the following dtypesIf... options override the dtypes value on their respective device types
+
+    # dtypes this function is expected to work with on the CPU,
+    # typically unnecessary since it's (now) redundant with the dtypes kwarg above
+    dtypesIfCPU: InitVar[_dispatch_dtypes] = None
+
+    # dtypes this function is expected to work with on CUDA
+    dtypesIfCUDA: InitVar[_dispatch_dtypes] = None
+
+    # dtypes this function is expected to work with on ROCM
+    dtypesIfROCM: InitVar[_dispatch_dtypes] = None
+
+    # backward dtypes this function is expected to work with
+    backward_dtypes: InitVar[_dispatch_dtypes] = None
+
+    # backward dtypes this function is expected to work with on CPU
+    backward_dtypesIfCPU: InitVar[_dispatch_dtypes] = None
+
+    # backward dtypes this function is expected to work with on CUDA
+    backward_dtypesIfCUDA: InitVar[_dispatch_dtypes] = None
+
+    # backward dtypes this function is expected to work with on ROCM
+    backward_dtypesIfROCM: InitVar[_dispatch_dtypes] = None
+
+    # dtypes to test with by default. Tests are instantiated with
+    # these dtypes for the op unless otherwise specified.
+    # This is helpful in reducing the test matrix.
+    default_test_dtypes: InitVar[_dispatch_dtypes] = None
+
+    # the following metadata describes the operators out= support
+
+    # whether the op supports the out kwarg
+    # defaults to True, if the op does not allow the out kwarg or
+    # supports it incorrectly then test_out in test_ops.py should fail
+    supports_out: bool = True
+
+    # whether op allows safe casting when writing to out arguments
+    safe_casts_outputs: bool = False
+
+    # the following metadata relates to autograd support
+    # whether the operation supports backward mode AD
+    # if true, gradient correctness is tested in test_ops.py
+    # using the op's sample inputs
+    supports_autograd: bool = True
+
+    # whether the op supports second order gradients
+    # if true, gradgrad correctness is tested in test_ops.py
+    # defaults to support_autograd's value
+    # TODO: rename this to supports_bwgrad_bwgrad to be consistent with below
+    supports_gradgrad: InitVar[bool] = None
+
+    # whether the ops supports second order gradients via
+    # forward-over-reverse. If True, forward-over-reverse gradgrad correctness
+    # is tested. If False, test that forward grad is not implemented.
+    # Defaults to False.
+    supports_fwgrad_bwgrad: bool = False
+
+    # whether the operation supports inplace autograd
+    # if true, tested in test_ops.py
+    # defaults to supports_autograd's value
+    supports_inplace_autograd: InitVar[bool] = None
+
+    # Whether the operation support forward mode AD
+    # If the value is True, we check that the gradients are correct
+    # If the value is False, we test that forward grad is not implemented
+    supports_forward_ad: bool = False
+
+    # wrapper function for gradcheck
+    gradcheck_wrapper: Callable = lambda op, *args, **kwargs: op(*args, **kwargs)
+
+    # whether to check batched grad when doing gradcheck
+    # defaults to support_autograd's value
+    check_batched_grad: InitVar[bool] = None
+
+    # whether to check batched grad grad when doing gradgradcheck
+    # default's to support_gradgrad's value
+    check_batched_gradgrad: InitVar[bool] = None
+
+    # whether to check batched forward grad when doing gradcheck
+    # defaults to the value of `supports_forward_ad`
+    check_batched_forward_grad: InitVar[bool] = None
+
+    # whether to check batched forward grad when doing gradcheck
+    # defaults to the value of `check_batched_forward_grad`
+    check_inplace_batched_forward_grad: InitVar[bool] = None
+
+    # tolerance for nondeterminism while performing gradcheck
+    gradcheck_nondet_tol: float = 0.0
+
+    # Whether to use the fast implmentation for gradcheck/gradgradcheck.
+    # When set to None, defers to the default value provided by the wrapper
+    # function around gradcheck (testing._internal.common_utils.gradcheck)
+    gradcheck_fast_mode: bool = None
+
+    # the following metadata relates to JIT support and is tested for correctness in test_ops.py
+
+    # name of the corresponding aten:: operator
+    aten_name: str = None
+
+    # if a op's aten::node is expected to be symbolically autodiffed
+    assert_autodiffed: bool = False
+
+    # a list of strings with node names that are expected to be in a
+    # DifferentiableGraph when autodiffed. Ex: ['aten::add', 'aten::mm'],
+    # default is populated to be ['aten::(name of Python operator)']
+    autodiff_nonfusible_nodes: InitVar[List[str]] = None
+
+    # a list of strings with node names that are expected to be in FusionGroups
+    # inside of DifferentiableGraphs when this operation is autodiffed.
+    # Ex: ['aten::add', 'aten::mm'], defaults to an empty list
+    # Note: currently no ops use fusible nodes
+    autodiff_fusible_nodes: InitVar[List[str]] = None
+
+    # the following metadata relates to sparse support and is used in test_sparse.py
+
+    # whether the op supports sparse inputs
+    supports_sparse: bool = False
+
+    # only run tracing tests
+    supports_scripting: bool = True
+
+    # the following metadata relates to sparse csr support and is used in test_sparse_csr.py
+
+    # whether the op supports sparse csr inputs
+    supports_sparse_csr: bool = False
+
+    # the following metadata relates to complex support and is checked in test_ops.py
+    test_conjugated_samples: bool = True
+
+    test_neg_view: bool = True
+
+    # assert that jit shape analysis fully propagates shape
+    assert_jit_shape_analysis: bool = False
+
+    # the following metadata relates to ExpandedWeights support and is checked in test_expanded_weights.py
+    supports_expanded_weight: bool = False
+
+
+    def __post_init__(self, aliases, method_variant, inplace_variant, decorators, sample_inputs_func,
+                      reference_inputs_func, error_inputs_func, sample_inputs_sparse_coo_func,
+                      sample_inputs_sparse_csr_func, dtypes, dtypesIfCPU, dtypesIfCUDA, dtypesIfROCM,
+                      backward_dtypes, backward_dtypesIfCPU, backward_dtypesIfCUDA, backward_dtypesIfROCM,
+                      default_test_dtypes, supports_gradgrad, supports_inplace_autograd, check_batched_grad,
+                      check_batched_gradgrad, check_batched_forward_grad, check_inplace_batched_forward_grad,
+                      autodiff_nonfusible_nodes, autodiff_fusible_nodes):
+
+        dtypes_args = (dtypes, dtypesIfCPU, dtypesIfCUDA, dtypesIfROCM)
+        # Validates the dtypes are generated from the dispatch-related functions
+        for dtype_list in dtypes_args:
+            assert isinstance(dtype_list, (_dispatch_dtypes, type(None)))
+
+        #self.aten_name = self.aten_name if self.aten_name is not None else self.name
+        if self.aten_name is None:
+            self.aten_name = self.name
+
+        # Attribute to verify dynamic_dtypes are used.
+        self.dynamic_dtypes = any(map(lambda dtypes: isinstance(
+            dtypes, opinfo_helper._dynamic_dispatch_dtypes), dtypes_args))
+
+        if self.dynamic_dtypes:
+            # Make sure `dtyesIfCUDA` is dynamic, if dynamic dispatch is used for CPU
+            # This is because, below we set dtypesIfCUDA to dtypes if they are None.
+            assert isinstance(dtypesIfCUDA, opinfo_helper._dynamic_dispatch_dtypes), \
+                (f"To use dynamic dypes for operator {self.name}, "
+                 "acquire the dtypes dynamically for argument `dtypesIfCUDA`."
+                 "This is to ensure that CUDA dtypes are acquired correctly as they"
+                 "differ from CPU dtypes occasionally")
+
+        self.dtypes = set(dtypes)
+
+        # NOTE: backward dtypes must be acquired before forward dtypes
+        #   since they fallback to explicit (not implicit!) specifications of
+        #   forward dtypes
+        self.backward_dtypes = set(backward_dtypes) if backward_dtypes is not None else self.dtypes
+        self.backward_dtypesIfCPU = set(backward_dtypesIfCPU) if backward_dtypesIfCPU is not None else (
+            backward_dtypes if backward_dtypes is not None
+            else dtypesIfCPU if dtypesIfCPU is not None
+            else dtypes)
+        self.backward_dtypesIfCUDA = set(backward_dtypesIfCUDA) if backward_dtypesIfCUDA is not None else (
+            backward_dtypes if backward_dtypes is not None
+            else dtypesIfCUDA if dtypesIfCUDA is not None
+            else dtypes)
+        self.backward_dtypesIfROCM = set(backward_dtypesIfROCM) if backward_dtypesIfROCM is not None else (
+            backward_dtypesIfCUDA if backward_dtypesIfCUDA is not None
+            else backward_dtypes if backward_dtypes is not None
+            else dtypesIfROCM if dtypesIfROCM is not None
+            else dtypesIfCUDA if dtypesIfCUDA is not None
+            else dtypes)
+
+        self.dtypesIfCPU = set(dtypesIfCPU) if dtypesIfCPU is not None else self.dtypes
+        self.dtypesIfCUDA = set(dtypesIfCUDA) if dtypesIfCUDA is not None else self.dtypes
+        self.dtypesIfROCM = set(dtypesIfROCM) if dtypesIfROCM is not None else self.dtypesIfCUDA
+
+        self._default_test_dtypes = set(default_test_dtypes) if default_test_dtypes is not None else None
+
+        # NOTE: if the op is unspecified it is assumed to be under the torch namespace
+        #self.op = self.op if self.op else _getattr_qual(torch, self.name)
+        if not self.op:
+            self.op = _getattr_qual(torch, self.name)
+        method_variant = getattr(torch.Tensor, self.name, None) if method_variant is _NOTHING else method_variant
+        # attributes like real, imag are not callable
+        self.method_variant = method_variant if callable(method_variant) else None
+        inplace_name = self.name + "_"
+        self.inplace_variant = getattr(torch.Tensor, inplace_name, None) \
+            if inplace_variant is _NOTHING else inplace_variant
+        self.operator_variant = getattr(operator, self.name, None)
+
+        self.decorators = (*decorators, *self.skips)
+
+        # We run the sampling functions without tracking the gradiends of the creation of inputs
+        self.sample_inputs_func = torch.no_grad()(sample_inputs_func)
+        self.reference_inputs_func = None if reference_inputs_func is None else torch.no_grad()(reference_inputs_func)
+        self.error_inputs_func = error_inputs_func
+        self.sample_inputs_sparse_coo_func = torch.no_grad()(sample_inputs_sparse_coo_func)
+        self.sample_inputs_sparse_csr_func = torch.no_grad()(sample_inputs_sparse_csr_func)
+
+        autodiff_fusible_nodes = autodiff_fusible_nodes if autodiff_fusible_nodes else []
+        if autodiff_nonfusible_nodes is None:
+            self.autodiff_nonfusible_nodes = ['aten::' + self.name]
+        else:
+            self.autodiff_nonfusible_nodes = autodiff_nonfusible_nodes
+
+        # Autograd support
+
+        # Autograd flags that depend on backward AD only
+        # - If setting has been explicitly set, raise error if inconsistent
+        if supports_gradgrad is None:
+            supports_gradgrad = self.supports_autograd
+        else:
+            assert not (supports_gradgrad and not self.supports_autograd), (
+                "supports_gradgrad refines the part of autograd is supported, so it should "
+                "not be set if supports_autograd is False")
+        if check_batched_grad is None:
+            check_batched_grad = self.supports_autograd or self.supports_forward_ad
+        else:
+            assert not (check_batched_grad and not (self.supports_autograd or self.supports_forward_ad)), (
+                "check_batched_grad refines the part of autograd that will be checked (by gradcheck), so "
+                "it should not be set if supports_autograd is False")
+        if check_batched_gradgrad is None:
+            check_batched_gradgrad = supports_gradgrad
+        else:
+            assert not (check_batched_gradgrad and not supports_gradgrad), (
+                "check_batched_gradgrad refines the part of autograd that will be checked (by "
+                "gradgradcheck), so it should not be set if either supports_gradgrad or supports_autograd "
+                "is False.")
+        if check_batched_forward_grad is None:
+            check_batched_forward_grad = self.supports_forward_ad
+        else:
+            assert not (check_batched_forward_grad and not self.supports_forward_ad), (
+                "check_batched_forward_grad should only be used when supports_forward_ad "
+                "is True. It is used to disable the test in the specific cases "
+                "where the op supports forward ad but fails to compute "
+                "batched forward grad.")
+
+        if check_inplace_batched_forward_grad is None:
+            check_inplace_batched_forward_grad = check_batched_forward_grad
+        else:
+            assert not (check_inplace_batched_forward_grad and not check_batched_forward_grad), (
+                "check_batched_forward_grad should only be used when check_batched_forward_grad "
+                "is True. It is used to disable the test in the specific cases "
+                "where the op supports batched forward grad but fails to compute batched forward "
+                "grad for the inplace variant of the op.")
+
+        assert not (self.supports_fwgrad_bwgrad and not self.supports_autograd), (
+            "supports_fwgrad_bwgrad enables forward-over-backward gradgrad checks and should only be "
+            "True if backward ad is also checked, i.e., supports_forward_ad should be True.", self.name)
+
+        self.supports_gradgrad = supports_gradgrad
+        self.check_batched_grad = check_batched_grad
+        self.check_batched_gradgrad = check_batched_gradgrad
+        self.check_batched_forward_grad = check_batched_forward_grad
+        self.check_inplace_batched_forward_grad = check_inplace_batched_forward_grad
+
+        # Autograd flags that depend on both forward AD and backward AD
+        if supports_inplace_autograd is None:
+            supports_inplace_autograd = self.supports_autograd or self.supports_forward_ad
+        else:
+            assert not (supports_inplace_autograd and not self.supports_autograd and not self.supports_forward_ad), (
+                "supports_inplace_autograd refines the part of autograd that is supported, so "
+                "it should not be set if both supports_autograd and supports_forward_ad are False")
+        self.supports_inplace_autograd = supports_inplace_autograd
+
+        self.aliases = ()
+        if aliases is not None:
+            self.aliases = tuple(AliasInfo(a) for a in aliases)  # type: ignore[assignment]
+
+    '''
     def __init__(self,
                  name,  # the string name of the function
                  *,
@@ -818,6 +1169,7 @@ class OpInfo(object):
         self.test_conjugated_samples = test_conjugated_samples
         self.test_neg_view = test_neg_view
         self.supports_expanded_weight = supports_expanded_weight
+    '''
 
     def __call__(self, *args, **kwargs):
         """Calls the function variant of the operator."""
@@ -967,7 +1319,7 @@ class OpInfo(object):
     def supports_dtype(self, dtype, device_type):
         return dtype in self.supported_dtypes(device_type)
 
-    def default_test_dtypes(self, device_type):
+    def get_default_test_dtypes(self, device_type):
         """Returns the default dtypes used to test this operator on the device.
 
         Equal to the operator's default_test_dtypes filtered to remove dtypes
