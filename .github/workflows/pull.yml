@@ -30,8 +30,9 @@ jobs:
       docker-image: ${{ needs.linux-xenial-py3_7-gcc5_4-build.outputs.docker-image }}
       test-matrix: |
         { include: [
-          { config: "default", shard: 1, num_shards: 2, runner: "linux.2xlarge" },
-          { config: "default", shard: 2, num_shards: 2, runner: "linux.2xlarge" },
+          { config: "default", shard: 1, num_shards: 3, runner: "linux.2xlarge" },
+          { config: "default", shard: 2, num_shards: 3, runner: "linux.2xlarge" },
+          { config: "default", shard: 3, num_shards: 3, runner: "linux.2xlarge" },
           { config: "distributed", shard: 1, num_shards: 1, runner: "linux.2xlarge" },
           { config: "docs_test", shard: 1, num_shards: 1,  runner: "linux.2xlarge" },
           { config: "backwards_compat", shard: 1, num_shards: 1, runner: "linux.2xlarge" },
@@ -62,8 +63,9 @@ jobs:
       docker-image: ${{ needs.linux-xenial-py3_7-gcc7-build.outputs.docker-image }}
       test-matrix: |
         { include: [
-          { config: "default", shard: 1, num_shards: 2, runner: "linux.2xlarge" },
-          { config: "default", shard: 2, num_shards: 2, runner: "linux.2xlarge" },
+          { config: "default", shard: 1, num_shards: 3, runner: "linux.2xlarge" },
+          { config: "default", shard: 2, num_shards: 3, runner: "linux.2xlarge" },
+          { config: "default", shard: 3, num_shards: 3, runner: "linux.2xlarge" },
         ]}
 
   linux-xenial-py3_7-clang7-asan-build:
@@ -110,8 +112,9 @@ jobs:
       docker-image: ${{ needs.linux-xenial-py3_7-clang7-onnx-build.outputs.docker-image }}
       test-matrix: |
         { include: [
-          { config: "default", shard: 1, num_shards: 2, runner: "linux.2xlarge" },
-          { config: "default", shard: 2, num_shards: 2, runner: "linux.2xlarge" },
+          { config: "default", shard: 1, num_shards: 3, runner: "linux.2xlarge" },
+          { config: "default", shard: 2, num_shards: 3, runner: "linux.2xlarge" },
+          { config: "default", shard: 3, num_shards: 3, runner: "linux.2xlarge" },
         ]}
 
   linux-bionic-py3_7-clang9-build:
@@ -130,8 +133,9 @@ jobs:
       docker-image: ${{ needs.linux-bionic-py3_7-clang9-build.outputs.docker-image }}
       test-matrix: |
         { include: [
-          { config: "default", shard: 1, num_shards: 2, runner: "linux.2xlarge" },
-          { config: "default", shard: 2, num_shards: 2, runner: "linux.2xlarge" },
+          { config: "default", shard: 1, num_shards: 3, runner: "linux.2xlarge" },
+          { config: "default", shard: 2, num_shards: 3, runner: "linux.2xlarge" },
+          { config: "default", shard: 3, num_shards: 3, runner: "linux.2xlarge" },
           { config: "noarch", shard: 1, num_shards: 1, runner: "linux.2xlarge" },
         ]}
 
@@ -177,8 +181,9 @@ jobs:
       docker-image: ${{ needs.linux-xenial-cuda11_3-py3_7-gcc7-build.outputs.docker-image }}
       test-matrix: |
         { include: [
-          { config: "default", shard: 1, num_shards: 2, runner: "linux.4xlarge.nvidia.gpu" },
-          { config: "default", shard: 2, num_shards: 2, runner: "linux.4xlarge.nvidia.gpu" },
+          { config: "default", shard: 1, num_shards: 3, runner: "linux.4xlarge.nvidia.gpu" },
+          { config: "default", shard: 2, num_shards: 3, runner: "linux.4xlarge.nvidia.gpu" },
+          { config: "default", shard: 3, num_shards: 3, runner: "linux.4xlarge.nvidia.gpu" },
           { config: "distributed", shard: 1, num_shards: 1, runner: "linux.8xlarge.nvidia.gpu" },
         ]}
 
@@ -198,8 +203,9 @@ jobs:
       docker-image: ${{ needs.linux-bionic-rocm5_0-py3_7-build.outputs.docker-image }}
       test-matrix: |
         { include: [
-          { config: "default", shard: 1, num_shards: 2, runner: "linux.rocm.gpu" },
-          { config: "default", shard: 2, num_shards: 2, runner: "linux.rocm.gpu" },
+          { config: "default", shard: 1, num_shards: 3, runner: "linux.rocm.gpu" },
+          { config: "default", shard: 2, num_shards: 3, runner: "linux.rocm.gpu" },
+          { config: "default", shard: 3, num_shards: 3, runner: "linux.rocm.gpu" },
         ]}
 
   linux-xenial-py3-clang5-mobile-build:
@@ -253,8 +259,9 @@ jobs:
       cuda-version: cpu
       test-matrix: |
         { include: [
-          { config: "default", shard: 1, num_shards: 2, runner: "windows.4xlarge" },
-          { config: "default", shard: 2, num_shards: 2, runner: "windows.4xlarge" },
+          { config: "default", shard: 1, num_shards: 3, runner: "windows.4xlarge" },
+          { config: "default", shard: 2, num_shards: 3, runner: "windows.4xlarge" },
+          { config: "default", shard: 3, num_shards: 3, runner: "windows.4xlarge" },
         ]}
 
   win-vs2019-cuda11_3-py3-build:
@@ -273,8 +280,9 @@ jobs:
       cuda-version: "11.3"
       test-matrix: |
         { include: [
-          { config: "default", shard: 1, num_shards: 2, runner: "windows.8xlarge.nvidia.gpu" },
-          { config: "default", shard: 2, num_shards: 2, runner: "windows.8xlarge.nvidia.gpu" },
+          { config: "default", shard: 1, num_shards: 3, runner: "windows.8xlarge.nvidia.gpu" },
+          { config: "default", shard: 2, num_shards: 3, runner: "windows.8xlarge.nvidia.gpu" },
+          { config: "default", shard: 3, num_shards: 3, runner: "windows.8xlarge.nvidia.gpu" },
           { config: "force_on_cpu", shard: 1, num_shards: 1, runner: "windows.4xlarge" },
         ]}
 
