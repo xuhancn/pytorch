@@ -82,12 +82,20 @@ def calculate_shards(num_shards: int, tests: List[str], job_times: Dict[str, flo
         curr_shard_time, curr_shard_jobs = sharded_jobs[min_shard_index]
         curr_shard_jobs.append(job)
         sharded_jobs[min_shard_index] = (curr_shard_time + filtered_job_times[job], curr_shard_jobs)
+    print("cats logging")
+    print(sorted_jobs)
+    for i, (time, _) in enumerate(sharded_jobs):
+        print(f'{i} {time} {jobs}')
+
 
     # Round robin the unknown jobs starting with the smallest shard
     index = sorted(range(num_shards), key=lambda i: sharded_jobs[i][0])[0]
     for job in unknown_jobs:
         sharded_jobs[index][1].append(job)
         index = (index + 1) % num_shards
+    print(unknown_jobs)
+    for i, (time, jobs) in enumerate(sharded_jobs):
+        print(f'{i} {jobs}')
     return sharded_jobs
 
 
