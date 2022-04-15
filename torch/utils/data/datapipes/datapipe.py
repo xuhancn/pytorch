@@ -61,6 +61,7 @@ class IterDataPipe(IterableDataset[T_co], metaclass=_DataPipeMeta):
     functions: Dict[str, Callable] = {}
     reduce_ex_hook : Optional[Callable] = None
     getstate_hook: Optional[Callable] = None
+    _valid_iterator_id: Optional[int] = None
 
     def __getattr__(self, attribute_name):
         if attribute_name in IterDataPipe.functions:

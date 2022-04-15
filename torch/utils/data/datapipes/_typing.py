@@ -337,6 +337,26 @@ class _DataPipeMeta(GenericMeta):
         return hash((self.__name__, self.type))
 
 
+def _check_iterator_valid(datapipe, id) -> None:
+    # if isinstance(datapipe, IterDataPipe)  # TODO: Do we need this?
+    print("Checking if the iterator is still valid")
+    if datapipe._valid_iterator_id == id:
+        pass
+    else:
+        raise RuntimeError("This iterator has been invalidated, because another iterator has been created"
+                           f"from the same IterDataPipe {datapipe}")  # TODO: Make this message better, show args?
+
+
+def _set_datapipe_valid_iterator_id(datapipe):
+    if datapipe._valid_iterator_id is None:
+        datapipe._valid_iterator_id = 0
+        print(f"Valid iterator id has been set to {datapipe._valid_iterator_id}.")
+    else:
+        datapipe._valid_iterator_id += 1
+        print(f"Valid iterator id has been updated to {datapipe._valid_iterator_id}.")
+    return datapipe._valid_iterator_id
+
+
 def hook_iterator(namespace, profile_name):
 
     def context():
@@ -354,24 +374,30 @@ def hook_iterator(namespace, profile_name):
             # TODO: Add try-except to in-place reduce traceback from the Exception
             # See: https://github.com/pytorch/data/issues/284
             with context():
+                # TODO: Check if iterator is still valid here
                 return next(self.iterator)
 
         def __getattr__(self, name):
             return getattr(self.iterator, name)
 
     func = namespace['__iter__']
+    iterator_id = None
 
     # ``__iter__`` of IterDataPipe is a generator function
     if inspect.isgeneratorfunction(func):
         @functools.wraps(func)
         def wrap_generator(*args, **kwargs):
             gen = func(*args, **kwargs)
+            datapipe = args[0]
+            iterator_id = _set_datapipe_valid_iterator_id(datapipe)
             try:
                 with context():
                     response = gen.send(None)
                 while True:
                     request = yield response
                     with context():
+                        # TODO: This is passed through when __next__ is called. Check if iterator is still valid.
+                        _check_iterator_valid(datapipe, iterator_id)
                         response = gen.send(request)
             except StopIteration as e:
                 return e.value
@@ -385,6 +411,7 @@ def hook_iterator(namespace, profile_name):
             @functools.wraps(next_func)
             def wrap_next(*args, **kwargs):
                 with context():
+                    # TODO: Check if iterator is still valid here
                     return next_func(*args, **kwargs)
 
             namespace['__next__'] = wrap_next
