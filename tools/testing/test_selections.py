@@ -52,6 +52,8 @@ def _calculate_job_times(reports: List["Report"]) -> Dict[str, float]:
         assert 'format_version' in v_report.keys() and v_report.get('format_version') == 2, \
             "S3 format currently handled is version 2 only"
         files: Dict[str, Any] = v_report['files']
+        print("cats logging _calculate_job_times")
+        print(report)
         for name, test_file in files.items():
             if name not in jobs_to_times:
                 jobs_to_times[name] = (test_file['total_seconds'], 1)
