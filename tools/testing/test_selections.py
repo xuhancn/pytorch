@@ -83,6 +83,7 @@ def calculate_shards(num_shards: int, tests: List[str], job_times: Dict[str, flo
         curr_shard_jobs.append(job)
         sharded_jobs[min_shard_index] = (curr_shard_time + filtered_job_times[job], curr_shard_jobs)
     print("cats logging")
+    print(job_times)
     print(sorted_jobs)
     for i, (time, jobs) in enumerate(sharded_jobs):
         print(f'{i} {time} {jobs}')
