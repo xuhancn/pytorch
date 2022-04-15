@@ -149,6 +149,7 @@ def _parse_master_summaries(summaries: Any, jobs: List[str]) -> Dict[str, List[R
     for summary in summaries:
         # master summary format: "test_time/{sha}/{job}/file"
         summary_job = summary.key.split('/')[2]
+        print(f'cats logging _parse_master_summaries {summary_job}')
         if summary_job in jobs or len(jobs) == 0:
             binary = summary.get()["Body"].read()
             string = bz2.decompress(binary).decode("utf-8")
@@ -191,7 +192,7 @@ def get_test_stats_summaries_for_pr(*, pr: str, job_prefix: str) -> Dict[str, Li
 # This function returns a list of S3 test time reports. This function can run into errors if HAVE_BOTO3 = False
 # or the S3 bucket is somehow unavailable. Even though this function goes through ten commits' reports to find a
 # non-empty report, it is still conceivable (though highly unlikely) for this function to return no reports.
-def gitget_previous_reports_for_branch(branch: str, ci_job_prefix: str = "") -> List[Report]:
+def get_previous_reports_for_branch(branch: str, ci_job_prefix: str = "") -> List[Report]:
     commit_date_ts = subprocess.check_output(
         ['git', 'show', '-s', '--format=%ct', 'HEAD'],
         encoding="ascii").strip()
