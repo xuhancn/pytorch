@@ -211,6 +211,8 @@ def get_previous_reports_for_branch(branch: str, ci_job_prefix: str = "") -> Lis
         logger.warning(f'Grabbing reports from commit: {commit}')
         summaries = get_test_stats_summaries_for_job(sha=commit, job_prefix=ci_job_prefix)
         for job_name, summary in summaries.items():
+            print('cats logging get_previous_reports_for_branch')
+            print(f'job name: {job_name} \nsummary: {summary}')
             reports.append(summary[0])
             if len(summary) > 1:
                 logger.warning(f'WARNING: Multiple summary objects found for {commit}/{job_name}')
