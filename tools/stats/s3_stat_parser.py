@@ -191,7 +191,7 @@ def get_test_stats_summaries_for_pr(*, pr: str, job_prefix: str) -> Dict[str, Li
 # This function returns a list of S3 test time reports. This function can run into errors if HAVE_BOTO3 = False
 # or the S3 bucket is somehow unavailable. Even though this function goes through ten commits' reports to find a
 # non-empty report, it is still conceivable (though highly unlikely) for this function to return no reports.
-def get_previous_reports_for_branch(branch: str, ci_job_prefix: str = "") -> List[Report]:
+def gitget_previous_reports_for_branch(branch: str, ci_job_prefix: str = "") -> List[Report]:
     commit_date_ts = subprocess.check_output(
         ['git', 'show', '-s', '--format=%ct', 'HEAD'],
         encoding="ascii").strip()
@@ -207,7 +207,7 @@ def get_previous_reports_for_branch(branch: str, ci_job_prefix: str = "") -> Lis
     commit_index = 0
     while len(reports) == 0 and commit_index < len(commits):
         commit = commits[commit_index]
-        logger.info(f'Grabbing reports from commit: {commit}')
+        logger.warning(f'Grabbing reports from commit: {commit}')
         summaries = get_test_stats_summaries_for_job(sha=commit, job_prefix=ci_job_prefix)
         for job_name, summary in summaries.items():
             reports.append(summary[0])
