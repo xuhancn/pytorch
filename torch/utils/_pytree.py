@@ -68,7 +68,6 @@ _register_pytree_node(list, _list_flatten, _list_unflatten)
 _register_pytree_node(tuple, _tuple_flatten, _tuple_unflatten)
 _register_pytree_node(namedtuple, _namedtuple_flatten, _namedtuple_unflatten)
 
-
 # h/t https://stackoverflow.com/questions/2166818/how-to-check-if-an-object-is-an-instance-of-a-namedtuple
 def _is_namedtuple_instance(pytree: Any) -> bool:
     typ = type(pytree)
