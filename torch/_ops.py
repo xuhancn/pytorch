@@ -7,7 +7,7 @@ import types
 
 import torch.jit
 import torch._utils_internal
-
+from .custom_libraries import get_library, remove_library
 # Query `hasattr` only once.
 _SET_GLOBAL_FLAGS = hasattr(sys, 'getdlopenflags') and hasattr(sys, 'setdlopenflags')
 
@@ -64,6 +64,16 @@ class OpOverload:
     @property
     def op(self):
         return self._op
+
+    def impl(self, dispatch_key, fn):
+        name = self.__name__ if self._overloadname != 'default' else self.__name__.split(".")[0]
+        get_library(self._schema.name.split("::")[0]).impl(name, dispatch_key, fn)
+        return
+
+    # TODO: move this method outside of OpOverload
+    def remove_impl(self):
+        remove_library(self._schema.name.split("::")[0])
+        return
 
     # TODO: add more methods to expose information about input and output arguments
 

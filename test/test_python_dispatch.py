@@ -10,6 +10,52 @@ from torch.utils._python_dispatch import enable_python_mode
 
 import logging
 
+class TestPythonRegistration(TestCase):
+    def test_override_cpu_sum(self) -> None:
+        # Example 1
+        run = [False]
+        def my_sum(*args, **kwargs):
+            run[0] = True
+            return args[0]
+
+        torch.ops.aten.sum.default.impl("CPU", my_sum)
+
+        x = torch.tensor([1, 2])
+        self.assertEqual(torch.sum(x), x)
+        self.assertTrue(run[0])
+
+        # Example 2
+        def my_neg(*args, **kwargs):
+            return args[0]._neg_view()
+
+        # Now we are secretly making the operator a view op so autograd needs to know how
+        # to handle it
+        torch.ops.aten.neg.default.impl("AutogradCPU", my_neg)
+
+        self.assertTrue(torch.neg(x).is_neg())
+
+        # Example 3
+        def my_mul(*args, **kwargs):
+            return torch.zeros_like(args[0])
+
+        torch.ops.aten.mul.Tensor.impl("ZeroTensor", my_mul)
+
+        y = torch._efficientzerotensor(2)
+        self.assertTrue(not torch.mul(x, y)._is_zerotensor())
+
+        # Remove the custom registrations
+        # End state: torch.remove_custom_library('aten')
+        # Concerns: you could be importing a library "foo" that's also registering stuff
+        # And say you wanna register something for the same op, dispatch key and
+        # then wanna delete the implementations at the end to fallback foo's implementations
+        # and not aten's for instance. This call will not do that and also remove foo's implementations.
+        torch.ops.aten.sum.default.remove_impl()
+
+        # Validate that the old behavior is restored
+        self.assertEqual(torch.sum(x), torch.tensor(3))
+        self.assertTrue(not torch.neg(x).is_neg())
+        self.assertTrue(torch.mul(x, y)._is_zerotensor())
+
 class TestPythonDispatch(TestCase):
     def test_basic(self) -> None:
         with capture_logs() as logs:
