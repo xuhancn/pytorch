@@ -1774,7 +1774,7 @@ if(BUILD_TEST)
   foreach(test_src ${Caffe2_CPU_TEST_SRCS})
     get_filename_component(test_name ${test_src} NAME_WE)
     add_executable(${test_name} "${test_src}")
-    target_link_libraries(${test_name} torch_library gtest_main)
+    target_link_libraries(${test_name} torch_library gtest_main ncurses)
     if(USE_OPENMP)
       # -fopenmp is a compile time flag and as result not guaranteed
       # to link executable against OpenMP runtime library

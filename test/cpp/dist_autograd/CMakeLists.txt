@@ -7,7 +7,7 @@ if(USE_DISTRIBUTED AND NOT WIN32)
 
   add_executable(test_dist_autograd ${DIST_AUTOGRAD_TEST_SOURCES})
   target_include_directories(test_dist_autograd PRIVATE ${ATen_CPU_INCLUDE})
-  target_link_libraries(test_dist_autograd PRIVATE torch gtest)
+  target_link_libraries(test_dist_autograd PRIVATE torch gtest ncurses)
 
   if(USE_CUDA)
     target_link_libraries(test_dist_autograd PRIVATE

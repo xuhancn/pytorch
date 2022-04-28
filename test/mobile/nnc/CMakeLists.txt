@@ -11,7 +11,7 @@ add_executable(test_mobile_nnc
   ${MOBILE_NNC_TEST_SRCS}
 )
 
-target_link_libraries(test_mobile_nnc PRIVATE torch gtest)
+target_link_libraries(test_mobile_nnc PRIVATE torch gtest ncurses)
 target_include_directories(test_mobile_nnc PRIVATE ${ATen_CPU_INCLUDE})
 target_compile_definitions(test_mobile_nnc PRIVATE USE_GTEST)
 
@@ -19,7 +19,7 @@ add_executable(aot_model_compiler_test
   ${TORCH_ROOT}/binaries/aot_model_compiler.cc
 )
 
-target_link_libraries(aot_model_compiler_test PRIVATE torch)
+target_link_libraries(aot_model_compiler_test PRIVATE torch ncurses)
 target_include_directories(aot_model_compiler_test PRIVATE ${ATen_CPU_INCLUDE})
 
 if(INSTALL_TEST)

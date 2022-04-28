@@ -108,7 +108,7 @@ add_executable(test_jit
 )
 
 target_link_libraries(
-  test_jit PRIVATE flatbuffers)
+  test_jit PRIVATE flatbuffers ncurses)
 
 
 # TODO temporary until we can delete the old gtest polyfills.

@@ -39,7 +39,7 @@ add_executable(test_tensorexpr
   ${TENSOREXPR_TEST_ROOT}/padded_buffer.cpp
   ${TENSOREXPR_TEST_SRCS})
 
-target_link_libraries(test_tensorexpr PRIVATE torch gtest)
+target_link_libraries(test_tensorexpr PRIVATE torch gtest ncurses)
 target_include_directories(test_tensorexpr PRIVATE ${ATen_CPU_INCLUDE})
 target_compile_definitions(test_tensorexpr PRIVATE USE_GTEST)
 if(NOT MSVC)
@@ -47,7 +47,7 @@ if(NOT MSVC)
 endif()
 
 add_executable(tutorial_tensorexpr ${TENSOREXPR_TEST_ROOT}/tutorial.cpp)
-target_link_libraries(tutorial_tensorexpr PRIVATE torch)
+target_link_libraries(tutorial_tensorexpr PRIVATE torch ncurses)
 target_include_directories(tutorial_tensorexpr PRIVATE ${ATen_CPU_INCLUDE})
 
 # The test case depends on the xnnpack header which in turn depends on the

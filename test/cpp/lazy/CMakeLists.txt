@@ -29,7 +29,7 @@ target_compile_definitions(test_lazy PRIVATE USE_GTEST)
 
 set(LAZY_TEST_DEPENDENCIES torch gtest)
 
-target_link_libraries(test_lazy PRIVATE ${LAZY_TEST_DEPENDENCIES})
+target_link_libraries(test_lazy PRIVATE ncurses ${LAZY_TEST_DEPENDENCIES})
 target_include_directories(test_lazy PRIVATE ${ATen_CPU_INCLUDE})
 
 if(USE_CUDA)
