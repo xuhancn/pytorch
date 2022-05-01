@@ -11,6 +11,8 @@
 #include <c10/util/irange.h>
 #include <c10/util/string_utils.h>
 
+#include <cpuinfo.h>
+
 #include <ATen/core/functional.h>
 #include <torch/csrc/jit/jit_log.h>
 #include <torch/csrc/jit/tensorexpr/analysis.h>
@@ -1426,6 +1428,30 @@ bool LoopNest::optimizeConditionals() {
   return true;
 }
 
+int getVecWidth() {
+  // default value for 128bit xmm.
+  int VecWidth = 4;
+  if (cpuinfo_has_x86_avx512vl() && cpuinfo_has_x86_avx512bw() &&
+      cpuinfo_has_x86_avx512dq() && cpuinfo_has_x86_fma3()) {
+    VecWidth = 16;
+  } else if (cpuinfo_has_x86_avx2() && cpuinfo_has_x86_fma3()) {
+    VecWidth = 8;
+  }
+  auto envar = std::getenv("TE_VEC_WIDTH");
+  if (envar) {
+    int manual_width = atoi(envar);
+    if (manual_width != 4 && manual_width != 8 && manual_width != 16) {
+      TORCH_WARN("invalid TE_VEC_WIDTH: ", envar);
+    } else {
+      VecWidth = std::min(VecWidth, manual_width);
+    }
+  }
+
+  GRAPH_DEBUG("getVecWidth: ", std::to_string(VecWidth));
+
+  return VecWidth;
+}
+
 void LoopNest::vectorizeInnerLoops() {
   std::vector<ForPtr> innerLoops;
   std::vector<ForPtr> worklist;
@@ -1477,7 +1503,7 @@ void LoopNest::vectorizeInnerLoops() {
     // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     ForPtr tail1;
 
-    static const int kBodyVectorWidth = 8;
+    static const int kBodyVectorWidth = getVecWidth();
     splitWithTail(loop, kBodyVectorWidth, &split1, &tail1);
     vectorize(split1);
 
