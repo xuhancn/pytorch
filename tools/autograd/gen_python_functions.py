@@ -93,8 +93,7 @@ _SKIP_PYTHON_BINDINGS = [
     ".*_forward_out",
     "_unsafe_view",
     "tensor",
-    "_?sparse_coo_tensor.*",
-    "_?sparse_csr_tensor.*",
+    "_?sparse_(coo|compressed|csr|csc|bsr|bsc)_tensor.*",
     "_arange.*",
     "_range.*",
     "linspace.*",
@@ -154,6 +153,7 @@ _SKIP_PYTHON_BINDINGS = [
     "copy",  # only used by the functionalization pass
     "fill.Tensor",  # only used by the functionalization pass
     "fill.Scalar",  # only used by the functionalization pass
+    "lift",
 ]
 
 SKIP_PYTHON_BINDINGS = list(
@@ -1101,6 +1101,8 @@ def sort_overloads(
         return (
             str(t1) == "Scalar"
             and str(t2) == "Tensor"
+            or str(t1) == "Scalar?"
+            and str(t2) == "Tensor?"
             or "Dimname" in str(t1)
             and "Dimname" not in str(t2)
             or
