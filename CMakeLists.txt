@@ -347,6 +347,7 @@ cmake_dependent_option(
 cmake_dependent_option(
     BUILD_FUNCTORCH "Build Functorch" ON "BUILD_PYTHON" OFF)
 
+option(USE_TC_MALLOC "Use tc_malloc" OFF)
 
 if(USE_CCACHE)
   find_program(CCACHE_PROGRAM ccache)
@@ -1018,6 +1019,10 @@ include_directories(BEFORE ${PROJECT_BINARY_DIR})
 
 include_directories(BEFORE ${PROJECT_SOURCE_DIR}/aten/src/)
 include_directories(BEFORE ${PROJECT_BINARY_DIR}/aten/src/)
+
+if(USE_TC_MALLOC)
+  # message("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+endif()
 
 # ---[ Main build
 add_subdirectory(c10)
