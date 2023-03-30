@@ -1,0 +1,11 @@
+function(link_binary_with_tc_malloc target_name)
+    if(USE_TC_MALLOC)
+        # https://github.com/gperftools/gperftools/blob/master/README_windows.txt#L34 
+        set_target_properties(${target_name} PROPERTIES LINK_FLAGS /INCLUDE:"__tcmalloc")
+        target_link_libraries(${target_name} PRIVATE "tcmalloc_minimal_static")
+        target_link_libraries(${target_name} PRIVATE "tm_logging")
+        target_link_libraries(${target_name} PRIVATE "spinlock")
+        target_link_libraries(${target_name} PRIVATE "sysinfo")
+        add_dependencies(${target_name} tcmalloc_minimal_static)
+    endif()
+endfunction(link_binary_with_tc_malloc)

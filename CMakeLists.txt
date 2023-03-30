@@ -1020,6 +1020,7 @@ include_directories(BEFORE ${PROJECT_BINARY_DIR})
 include_directories(BEFORE ${PROJECT_SOURCE_DIR}/aten/src/)
 include_directories(BEFORE ${PROJECT_BINARY_DIR}/aten/src/)
 
+include(cmake/TcMalloc.cmake)
 if(USE_TC_MALLOC)
   if(1)
     option(BUILD_TESTING OFF)

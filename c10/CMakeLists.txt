@@ -42,6 +42,7 @@ file(GLOB C10_HEADERS
         util/*.h
         )
 add_library(c10 ${C10_SRCS} ${C10_HEADERS})
+# link_binary_with_tc_malloc(c10)
 if(HAVE_SOVERSION)
   set_target_properties(c10 PROPERTIES
       VERSION ${TORCH_VERSION} SOVERSION ${TORCH_SOVERSION})
