@@ -815,7 +815,7 @@ set(Caffe2_CPU_SRCS ${Caffe2_CPU_SRCS_NON_AVX} ${Caffe2_CPU_SRCS_AVX2} ${Caffe2_
 # ==========================================================
 
 add_library(torch_cpu ${Caffe2_CPU_SRCS})
-# link_binary_with_tc_malloc(torch_cpu)
+link_binary_with_tc_malloc(torch_cpu)
 if(HAVE_SOVERSION)
   set_target_properties(torch_cpu PROPERTIES
       VERSION ${TORCH_VERSION} SOVERSION ${TORCH_SOVERSION})
