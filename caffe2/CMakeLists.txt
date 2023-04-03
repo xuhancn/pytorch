@@ -889,7 +889,7 @@ file(WRITE ${DUMMY_EMPTY_FILE} ${DUMMY_FILE_CONTENT})
 # Wrapper library for people who link against torch and expect both CPU and CUDA support
 # Contains "torch_cpu" and "torch_cuda"
 add_library(torch ${DUMMY_EMPTY_FILE})
-link_binary_with_tc_malloc(torch)
+# link_binary_with_tc_malloc(torch)
 
 if(HAVE_SOVERSION)
   set_target_properties(torch PROPERTIES

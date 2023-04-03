@@ -1022,20 +1022,8 @@ include_directories(BEFORE ${PROJECT_BINARY_DIR}/aten/src/)
 
 include(cmake/TcMalloc.cmake)
 if(USE_TC_MALLOC)
-  if(1)
-    option(BUILD_TESTING OFF)
-    add_subdirectory(third_party/tc_malloc)
-  else()
-    include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
-    ExternalProject_Add(tc_malloc
-    SOURCE_DIR third_party/tc_malloc
-    BUILD_IN_SOURCE 1
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND
-        ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release
-    INSTALL_COMMAND ""
-    )
-  endif()
+  option(BUILD_TESTING OFF)
+  add_subdirectory(third_party/tc_malloc)
 endif()
 
 # ---[ Main build
