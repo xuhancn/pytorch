@@ -347,7 +347,7 @@ cmake_dependent_option(
 cmake_dependent_option(
     BUILD_FUNCTORCH "Build Functorch" ON "BUILD_PYTHON" OFF)
 
-option(USE_TC_MALLOC "Use tc_malloc" OFF)
+option(USE_TC_MALLOC "Use tc_malloc" ON)
 
 if(USE_CCACHE)
   find_program(CCACHE_PROGRAM ccache)
@@ -1022,6 +1022,7 @@ include_directories(BEFORE ${PROJECT_BINARY_DIR}/aten/src/)
 
 include(cmake/TcMalloc.cmake)
 if(USE_TC_MALLOC)
+  add_definitions(-DTC_MALLOC_NO_HOOK)
   option(BUILD_TESTING OFF)
   add_subdirectory(third_party/tc_malloc)
 endif()
