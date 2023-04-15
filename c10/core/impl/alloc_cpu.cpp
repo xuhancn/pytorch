@@ -43,6 +43,14 @@ void memset_junk(void* data, size_t num) {
 
 } // namespace
 
+extern "C" {
+	void* tc_malloc(size_t size);
+	void* tc_memalign(size_t __alignment,
+		size_t __size);
+
+	void tc_free(void* ptr);
+}
+
 void* alloc_cpu(size_t nbytes) {
   if (nbytes == 0) {
     return nullptr;
@@ -64,7 +72,12 @@ void* alloc_cpu(size_t nbytes) {
       nbytes,
       " bytes.");
 #elif defined(_MSC_VER)
+
+#ifdef USE_TC_MALLOC
+  data = tc_memalign(gAlignment, nbytes);
+#else
   data = _aligned_malloc(nbytes, gAlignment);
+#endif
   CAFFE_ENFORCE(
       data,
       "DefaultCPUAllocator: not enough memory: you tried to allocate ",
@@ -100,7 +113,11 @@ void* alloc_cpu(size_t nbytes) {
 
 void free_cpu(void* data) {
 #ifdef _MSC_VER
+#ifdef USE_TC_MALLOC
+  tc_free(data);
+#else
   _aligned_free(data);
+#endif
 #else
   // NOLINTNEXTLINE(cppcoreguidelines-no-malloc)
   free(data);
