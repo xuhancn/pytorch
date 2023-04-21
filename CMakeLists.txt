@@ -681,7 +681,7 @@ if(NOT IOS AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_OSX_ARCHITECTURES M
   set(protoc_build_command "./scripts/build_host_protoc.sh --other-flags -DCMAKE_OSX_ARCHITECTURES=\"x86_64;arm64\" -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY -DCMAKE_C_COMPILER_WORKS=1 -DCMAKE_CXX_COMPILER_WORKS=1")
   # We write to a temp scriptfile because CMake COMMAND dislikes double quotes in commands
   file(WRITE ${PROJECT_SOURCE_DIR}/tmp_protoc_script.sh "#!/bin/bash\n${protoc_build_command}")
-  file(COPY ${c}/tmp_protoc_script.sh DESTINATION ${PROJECT_SOURCE_DIR}/scripts/ FILE_PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ)
+  file(COPY ${PROJECT_SOURCE_DIR}/tmp_protoc_script.sh DESTINATION ${PROJECT_SOURCE_DIR}/scripts/ FILE_PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ)
   execute_process(COMMAND ./scripts/tmp_protoc_script.sh
                   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
                   RESULT_VARIABLE BUILD_HOST_PROTOC_RESULT)
@@ -1016,7 +1016,7 @@ include_directories(BEFORE ${PROJECT_BINARY_DIR}/aten/src/)
 if(USE_MIMALLOC)
   add_definitions(-DUSE_MIMALLOC)
   add_subdirectory(third_party/mimalloc)
-include_directories(third_party/mimalloc/include)
+  include_directories(third_party/mimalloc/include)
 endif()
 
 # ---[ Main build
