@@ -42,6 +42,11 @@ file(GLOB C10_HEADERS
         util/*.h
         )
 add_library(c10 ${C10_SRCS} ${C10_HEADERS})
+if(USE_MIMALLOC)
+  target_link_libraries(c10 PRIVATE "mimalloc-static")
+  add_dependencies(c10 mimalloc-static)
+endif()
+
 if(HAVE_SOVERSION)
   set_target_properties(c10 PROPERTIES
       VERSION ${TORCH_VERSION} SOVERSION ${TORCH_SOVERSION})
