@@ -12,6 +12,7 @@ import sysconfig
 import warnings
 import collections
 
+import time
 import torch
 import torch._appdirs
 from .file_baton import FileBaton
@@ -1430,7 +1431,9 @@ def load_inline(name,
 
         sources.append(cuda_source_path)
 
-    return _jit_compile(
+    start = time.time()
+    print('!!!!!compiling start.')
+    result = _jit_compile(
         name,
         sources,
         extra_cflags,
@@ -1438,11 +1441,16 @@ def load_inline(name,
         extra_ldflags,
         extra_include_paths,
         build_directory,
-        verbose,
+        True,
         with_cuda,
         is_python_module,
         is_standalone=False,
         keep_intermediates=keep_intermediates)
+    
+    end = time.time()
+    print('!!!!!compiling time: ',end - start)
+    
+    return result
 
 
 def _jit_compile(name,
