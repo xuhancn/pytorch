@@ -706,6 +706,7 @@ class CppCodeCache:
         )
         if key not in cls.cache:
             from filelock import FileLock
+            import time
 
             lock_dir = get_lock_dir()
             lock = FileLock(os.path.join(lock_dir, key + ".lock"), timeout=LOCK_TIMEOUT)
