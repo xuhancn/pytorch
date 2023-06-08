@@ -715,10 +715,14 @@ class CppCodeCache:
                     cmd = cpp_compile_command(
                         input=input_path, output=output_path, vec_isa=picked_vec_isa
                     ).split(" ")
+                    print("!!!!cmd:{}".format(cmd))
+                    start = time.time()
                     try:
                         subprocess.check_output(cmd, stderr=subprocess.STDOUT)
                     except subprocess.CalledProcessError as e:
                         raise exc.CppCompileError(cmd, e.output) from e
+                    end = time.time()
+                    print('!!!!!compiling time: ',end - start)
 
                 cls.cache[key] = cls._load_library(output_path)
                 cls.cache[key].key = key
