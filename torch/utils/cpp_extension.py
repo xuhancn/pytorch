@@ -12,6 +12,7 @@ import sysconfig
 import warnings
 import collections
 
+import time
 import torch
 import torch._appdirs
 from .file_baton import FileBaton
@@ -1429,8 +1430,10 @@ def load_inline(name,
             cuda_source_file.write('\n'.join(cuda_sources))
 
         sources.append(cuda_source_path)
-
-    return _jit_compile(
+    
+    start = time.time()
+    print('!!!!!compiling start.')
+    result = _jit_compile(
         name,
         sources,
         extra_cflags,
@@ -1438,11 +1441,16 @@ def load_inline(name,
         extra_ldflags,
         extra_include_paths,
         build_directory,
-        verbose,
+        True,
         with_cuda,
         is_python_module,
         is_standalone=False,
         keep_intermediates=keep_intermediates)
+    
+    end = time.time()
+    print('!!!!!compiling time: ',end - start)
+    
+    return result
 
 
 def _jit_compile(name,
@@ -1459,6 +1467,10 @@ def _jit_compile(name,
                  keep_intermediates=True) -> None:
     if is_python_module and is_standalone:
         raise ValueError("`is_python_module` and `is_standalone` are mutually exclusive.")
+
+    print('!!!!!extra_cflags:{}.'.format(extra_cflags))
+    extra_cflags += ["-fuse-ld=lld"]
+    print('!!!!!extra_cflags:{}.'.format(extra_cflags))
 
     if with_cuda is None:
         with_cuda = any(map(_is_cuda_file, sources))
