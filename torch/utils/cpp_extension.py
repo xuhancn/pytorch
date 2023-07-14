@@ -1469,8 +1469,15 @@ def _jit_compile(name,
         raise ValueError("`is_python_module` and `is_standalone` are mutually exclusive.")
 
     print('!!!!!extra_cflags:{}.'.format(extra_cflags))
+    print('!!!!!extra_ldflags:{}.'.format(extra_ldflags))
     extra_cflags += ["-fuse-ld=lld"]
+    extra_cflags += ["-v"] #
+    extra_cflags += ["-ftime-report"]
+    extra_ldflags += ["-fuse-ld=lld"]
+    extra_ldflags += ["-v"]
+    extra_ldflags += ["-ftime-report"]
     print('!!!!!extra_cflags:{}.'.format(extra_cflags))
+    print('!!!!!extra_ldflags:{}.'.format(extra_ldflags))
 
     if with_cuda is None:
         with_cuda = any(map(_is_cuda_file, sources))
