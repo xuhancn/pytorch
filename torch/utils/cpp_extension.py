@@ -1450,29 +1450,13 @@ def load_inline(name,
         is_python_module,
         is_standalone=False,
         keep_intermediates=keep_intermediates,
-        # use_ninja=False
+        use_ninja=False
         )
     
     end = time.time()
     print('!!!!! load_inline --> compiling time: ',end - start)
     
     return result
-
-def _non_ninja_build_library(
-        name,
-        sources: List[str],
-        extra_cflags,
-        extra_cuda_cflags,
-        extra_ldflags,
-        extra_include_paths,
-        build_directory: str,
-        verbose: bool,
-        with_cuda: Optional[bool],
-        is_standalone: bool = False) -> None:
-    output = f"{build_directory}{LIB_EXT}"
-    print("!!!! build_directory:{}".format(build_directory))
-    print("!!!! output:{}".format(output))    
-    
 
 def _jit_compile(name,
                  sources,
@@ -1632,7 +1616,55 @@ def _write_ninja_file_and_compile_objects(
         # that failed to build but there isn't a good way to get it here.
         error_prefix='Error compiling objects for extension')
 
-
+from torch._inductor.codecache import cpp_compile_command, pick_vec_isa
+from torch._inductor.exc import CppCompileError
+def _non_ninja_build_library(
+        name,
+        sources: List[str],
+        extra_cflags,
+        extra_cuda_cflags,
+        extra_ldflags,
+        extra_include_paths,
+        build_directory: str,
+        verbose: bool,
+        with_cuda: Optional[bool],
+        is_standalone: bool = False) -> None:
+    compiler = get_cxx_compiler()
+    get_compiler_abi_compatibility_and_version(compiler)
+    if with_cuda is None:
+        with_cuda = any(map(_is_cuda_file, sources))
+    extra_ldflags = _prepare_ldflags(
+        extra_ldflags or [],
+        with_cuda,
+        verbose,
+        is_standalone)
+    
+    def listToString(s):  
+        # initialize an empty string 
+        string = " "    
+        # return string 
+        return (string.join(s))
+    
+    sources_files = listToString(sources)
+    
+    output = f"{build_directory}{LIB_EXT}"
+    
+    picked_vec_isa = pick_vec_isa()
+    cmd = cpp_compile_command(input = sources_files,
+    output=output,
+    vec_isa=picked_vec_isa
+    ).split(" ")
+    
+    print("!!!! cmd:{}".format(cmd))
+    
+    try:
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        raise CppCompileError(cmd, e.output) from e
+    
+    print("!!!! build_directory:{}".format(build_directory))
+    print("!!!! output:{}".format(output))
+    
 def _write_ninja_file_and_build_library(
         name,
         sources: List[str],
