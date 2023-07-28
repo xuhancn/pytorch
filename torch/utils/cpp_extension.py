@@ -1434,10 +1434,6 @@ def load_inline(name,
             cuda_source_file.write('\n'.join(cuda_sources))
 
         sources.append(cuda_source_path)
-
-    output = f"{build_directory}{LIB_EXT}"
-    print("!!!! build_directory:{}".format(build_directory))
-    print("!!!! output:{}".format(output))
     
     start = time.time()
     print('!!!!! load_inline --> compiling start.')
@@ -1453,13 +1449,30 @@ def load_inline(name,
         with_cuda,
         is_python_module,
         is_standalone=False,
-        keep_intermediates=keep_intermediates)
+        keep_intermediates=keep_intermediates,
+        # use_ninja=False
+        )
     
     end = time.time()
     print('!!!!! load_inline --> compiling time: ',end - start)
     
     return result
 
+def _non_ninja_build_library(
+        name,
+        sources: List[str],
+        extra_cflags,
+        extra_cuda_cflags,
+        extra_ldflags,
+        extra_include_paths,
+        build_directory: str,
+        verbose: bool,
+        with_cuda: Optional[bool],
+        is_standalone: bool = False) -> None:
+    output = f"{build_directory}{LIB_EXT}"
+    print("!!!! build_directory:{}".format(build_directory))
+    print("!!!! output:{}".format(output))    
+    
 
 def _jit_compile(name,
                  sources,
@@ -1472,7 +1485,8 @@ def _jit_compile(name,
                  with_cuda: Optional[bool],
                  is_python_module,
                  is_standalone,
-                 keep_intermediates=True) -> None:
+                 keep_intermediates=True,
+                 use_ninja = True) -> None:
     if is_python_module and is_standalone:
         raise ValueError("`is_python_module` and `is_standalone` are mutually exclusive.")
 
@@ -1533,18 +1547,32 @@ def _jit_compile(name,
                             hipified_sources.add(hipify_result[s_abs]["hipified_path"] if s_abs in hipify_result else s_abs)
 
                         sources = list(hipified_sources)
-
-                    _write_ninja_file_and_build_library(
-                        name=name,
-                        sources=sources,
-                        extra_cflags=extra_cflags or [],
-                        extra_cuda_cflags=extra_cuda_cflags or [],
-                        extra_ldflags=extra_ldflags or [],
-                        extra_include_paths=extra_include_paths or [],
-                        build_directory=build_directory,
-                        verbose=verbose,
-                        with_cuda=with_cuda,
-                        is_standalone=is_standalone)
+                        
+                    if use_ninja is True:
+                        _write_ninja_file_and_build_library(
+                            name=name,
+                            sources=sources,
+                            extra_cflags=extra_cflags or [],
+                            extra_cuda_cflags=extra_cuda_cflags or [],
+                            extra_ldflags=extra_ldflags or [],
+                            extra_include_paths=extra_include_paths or [],
+                            build_directory=build_directory,
+                            verbose=verbose,
+                            with_cuda=with_cuda,
+                            is_standalone=is_standalone)
+                    else:
+                        # _non_ninja_build_library
+                        _non_ninja_build_library(
+                            name=name,
+                            sources=sources,
+                            extra_cflags=extra_cflags or [],
+                            extra_cuda_cflags=extra_cuda_cflags or [],
+                            extra_ldflags=extra_ldflags or [],
+                            extra_include_paths=extra_include_paths or [],
+                            build_directory=build_directory,
+                            verbose=verbose,
+                            with_cuda=with_cuda,
+                            is_standalone=is_standalone)
             finally:
                 baton.release()
         else:
