@@ -1434,9 +1434,13 @@ def load_inline(name,
             cuda_source_file.write('\n'.join(cuda_sources))
 
         sources.append(cuda_source_path)
+
+    output = f"{build_directory}{LIB_EXT}"
+    print("!!!! build_directory:{}".format(build_directory))
+    print("!!!! output:{}".format(output))
     
     start = time.time()
-    print('!!!!!compiling start.')
+    print('!!!!! load_inline --> compiling start.')
     result = _jit_compile(
         name,
         sources,
@@ -1452,7 +1456,7 @@ def load_inline(name,
         keep_intermediates=keep_intermediates)
     
     end = time.time()
-    print('!!!!!compiling time: ',end - start)
+    print('!!!!! load_inline --> compiling time: ',end - start)
     
     return result
 
