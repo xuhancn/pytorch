@@ -1450,7 +1450,7 @@ def load_inline(name,
         is_python_module,
         is_standalone=False,
         keep_intermediates=keep_intermediates,
-        use_ninja=False
+        # use_ninja=False
         )
     
     end = time.time()
