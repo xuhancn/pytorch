@@ -1299,6 +1299,57 @@ def load(name,
         is_standalone,
         keep_intermediates=keep_intermediates)
 
+def check_precompiler_headers(extra_cflags,
+                            extra_include_paths):
+    compiler = get_cxx_compiler()
+    head_file = os.path.join(_TORCH_PATH, 'include', 'torch', 'extension.h')
+    head_file_pch = os.path.join(_TORCH_PATH, 'include', 'torch', 'extension.h.gch')    
+    
+    def listToString(s): 
+        # initialize an empty string 
+        string = "" 
+        # traverse in the string 
+        for element in s:
+            string += (element + ' ')
+        # return string 
+        return string 
+    
+    extra_cflags_str = listToString(extra_cflags)
+    extra_include_paths_str = listToString(extra_include_paths)
+    
+    abi_cflags = ['-DTORCH_API_INCLUDE_EXTENSION_H', '-fPIC']
+    for pname in ["COMPILER_TYPE", "STDLIB", "BUILD_ABI"]:
+        pval = getattr(torch._C, f"_PYBIND11_{pname}")
+        if pval is not None and not IS_WINDOWS:
+            abi_cflags.append(f'-DPYBIND11_{pname}=\\"{pval}\\"')
+
+    abi_cflags += ['-D_GLIBCXX_USE_CXX11_ABI=' + str(int(torch._C._GLIBCXX_USE_CXX11_ABI))]
+    
+    abi_cflags_str = listToString(abi_cflags)
+    
+    '''
+    c++ -x c++-header /home/xu/anaconda3/envs/xu_pytorch/lib/python3.11/site-packages/torch/include/torch/extension.h -o /home/xu/anaconda3/envs/xu_pytorch/lib/python3.11/site-packages/torch/include/torch/extension.h.gch -I/home/xu/anaconda3/envs/xu_pytorch/lib/python3.11/site-packages/torch/include/torch/csrc/api/include/ -I/home/xu/anaconda3/envs/xu_pytorch/include/python3.11/ -I/home/xu/anaconda3/envs/xu_pytorch/lib/python3.11/site-packages/torch/include -DTORCH_API_INCLUDE_EXTENSION_H -DPYBIND11_COMPILER_TYPE=\"_gcc\" -DPYBIND11_STDLIB=\"_libstdcpp\" -DPYBIND11_BUILD_ABI=\"_cxxabi1013\" -D_GLIBCXX_USE_CXX11_ABI=1 -fPIC -std=c++17 -Wno-unused-variable -O3 -ffast-math -fno-finite-math-only -march=native -fopenmp -Wall -DCPU_CAPABILITY_AVX2 -D C10_USING_CUSTOM_GENERATED_MACROS
+    '''
+    def format_precompiler_header_cmd(compiler, head_file, head_file_pch, abi_cflags, extra_cflags, extra_include_paths):
+        return re.sub(
+            r"[ \n]+",
+            " ",
+            f"""
+                {compiler} -x c++-header {head_file} -o {head_file_pch} {extra_include_paths} {extra_cflags} {abi_cflags}
+            """,
+        ).strip()
+        
+    pch_cmd = format_precompiler_header_cmd(compiler, head_file, head_file_pch, abi_cflags_str, extra_cflags_str, extra_include_paths_str)
+    
+    include_dir = os.path.join(_TORCH_PATH, 'include')
+    
+    if os.path.isfile(head_file_pch) is not True:
+        print('!!!!!pch_cmd:{}.'.format(pch_cmd))
+        try:
+            subprocess.check_call(["sh", "-c" ,"{}".format(pch_cmd)])
+        except subprocess.CalledProcessError as e:
+            from .._inductor.exc import CppCompileError
+            raise CppCompileError(pch_cmd, e.output) from e
 
 def load_inline(name,
                 cpp_sources,
@@ -1394,6 +1445,8 @@ def load_inline(name,
         cuda_sources = [cuda_sources]
 
     cpp_sources.insert(0, '#include <torch/extension.h>')
+    check_precompiler_headers(extra_cflags,
+                            extra_include_paths)
 
     # If `functions` is supplied, we create the pybind11 bindings for the user.
     # Here, `functions` is (or becomes, after some processing) a map from
@@ -1476,6 +1529,7 @@ def _jit_compile(name,
 
     print('!!!!!extra_cflags:{}.'.format(extra_cflags))
     print('!!!!!extra_ldflags:{}.'.format(extra_ldflags))
+    print('!!!!!extra_include_paths:{}.'.format(extra_include_paths))
     '''
     extra_cflags += ["-fuse-ld=lld"]
     extra_cflags += ["-v"] #
