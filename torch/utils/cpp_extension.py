@@ -1299,8 +1299,33 @@ def load(name,
         is_standalone,
         keep_intermediates=keep_intermediates)
 
+def get_pybind11_abi_build_flags():
+    # Note [Pybind11 ABI constants]
+    #
+    # Pybind11 before 2.4 used to build an ABI strings using the following pattern:
+    # f"__pybind11_internals_v{PYBIND11_INTERNALS_VERSION}{PYBIND11_INTERNALS_KIND}{PYBIND11_BUILD_TYPE}__"
+    # Since 2.4 compier type, stdlib and build abi parameters are also encoded like this:
+    # f"__pybind11_internals_v{PYBIND11_INTERNALS_VERSION}{PYBIND11_INTERNALS_KIND}{PYBIND11_COMPILER_TYPE}{PYBIND11_STDLIB}{PYBIND11_BUILD_ABI}{PYBIND11_BUILD_TYPE}__"
+    #
+    # This was done in order to further narrow down the chances of compiler ABI incompatibility
+    # that can cause a hard to debug segfaults.
+    # For PyTorch extensions we want to relax those restrictions and pass compiler, stdlib and abi properties
+    # captured during PyTorch native library compilation in torch/csrc/Module.cpp 
+
+    abi_cflags = []
+    for pname in ["COMPILER_TYPE", "STDLIB", "BUILD_ABI"]:
+        pval = getattr(torch._C, f"_PYBIND11_{pname}")
+        if pval is not None and not IS_WINDOWS:
+            abi_cflags.append(f'-DPYBIND11_{pname}=\\"{pval}\\"')
+    return abi_cflags
+
+def get_glibcxx_abi_build_flags():
+    glibcxx_abi_cflags = ['-D_GLIBCXX_USE_CXX11_ABI=' + str(int(torch._C._GLIBCXX_USE_CXX11_ABI))]
+    return glibcxx_abi_cflags
+
 def check_precompiler_headers(extra_cflags,
-                            extra_include_paths):
+                            extra_include_paths,
+                            is_standalone=False):
     compiler = get_cxx_compiler()
     head_file = os.path.join(_TORCH_PATH, 'include', 'torch', 'extension.h')
     head_file_pch = os.path.join(_TORCH_PATH, 'include', 'torch', 'extension.h.gch')    
@@ -1317,31 +1342,28 @@ def check_precompiler_headers(extra_cflags,
     extra_cflags_str = listToString(extra_cflags)
     extra_include_paths_str = listToString(extra_include_paths)
     
-    abi_cflags = ['-DTORCH_API_INCLUDE_EXTENSION_H', '-fPIC']
-    for pname in ["COMPILER_TYPE", "STDLIB", "BUILD_ABI"]:
-        pval = getattr(torch._C, f"_PYBIND11_{pname}")
-        if pval is not None and not IS_WINDOWS:
-            abi_cflags.append(f'-DPYBIND11_{pname}=\\"{pval}\\"')
-
-    abi_cflags += ['-D_GLIBCXX_USE_CXX11_ABI=' + str(int(torch._C._GLIBCXX_USE_CXX11_ABI))]
+    common_cflags = []
+    if not is_standalone:
+        common_cflags += ['-DTORCH_API_INCLUDE_EXTENSION_H']
     
-    abi_cflags_str = listToString(abi_cflags)
+    common_cflags += ['-std=c++17', '-fPIC']
+    common_cflags += [f"{x}" for x in get_pybind11_abi_build_flags()]
+    common_cflags += [f"{x}" for x in get_glibcxx_abi_build_flags()]
+    common_cflags_str = listToString(common_cflags)
     
     '''
     c++ -x c++-header /home/xu/anaconda3/envs/xu_pytorch/lib/python3.11/site-packages/torch/include/torch/extension.h -o /home/xu/anaconda3/envs/xu_pytorch/lib/python3.11/site-packages/torch/include/torch/extension.h.gch -I/home/xu/anaconda3/envs/xu_pytorch/lib/python3.11/site-packages/torch/include/torch/csrc/api/include/ -I/home/xu/anaconda3/envs/xu_pytorch/include/python3.11/ -I/home/xu/anaconda3/envs/xu_pytorch/lib/python3.11/site-packages/torch/include -DTORCH_API_INCLUDE_EXTENSION_H -DPYBIND11_COMPILER_TYPE=\"_gcc\" -DPYBIND11_STDLIB=\"_libstdcpp\" -DPYBIND11_BUILD_ABI=\"_cxxabi1013\" -D_GLIBCXX_USE_CXX11_ABI=1 -fPIC -std=c++17 -Wno-unused-variable -O3 -ffast-math -fno-finite-math-only -march=native -fopenmp -Wall -DCPU_CAPABILITY_AVX2 -D C10_USING_CUSTOM_GENERATED_MACROS
     '''
-    def format_precompiler_header_cmd(compiler, head_file, head_file_pch, abi_cflags, extra_cflags, extra_include_paths):
+    def format_precompiler_header_cmd(compiler, head_file, head_file_pch, common_cflags, extra_cflags, extra_include_paths):
         return re.sub(
             r"[ \n]+",
             " ",
             f"""
-                {compiler} -x c++-header {head_file} -o {head_file_pch} {extra_include_paths} {extra_cflags} {abi_cflags}
+                {compiler} -x c++-header {head_file} -o {head_file_pch} {extra_include_paths} {extra_cflags} {common_cflags}
             """,
         ).strip()
         
-    pch_cmd = format_precompiler_header_cmd(compiler, head_file, head_file_pch, abi_cflags_str, extra_cflags_str, extra_include_paths_str)
-    
-    include_dir = os.path.join(_TORCH_PATH, 'include')
+    pch_cmd = format_precompiler_header_cmd(compiler, head_file, head_file_pch, common_cflags_str, extra_cflags_str, extra_include_paths_str)
     
     if os.path.isfile(head_file_pch) is not True:
         print('!!!!!pch_cmd:{}.'.format(pch_cmd))
@@ -2116,28 +2138,13 @@ def _write_ninja_file_to_build_library(path,
     if not is_standalone:
         common_cflags.append(f'-DTORCH_EXTENSION_NAME={name}')
         common_cflags.append('-DTORCH_API_INCLUDE_EXTENSION_H')
-
-    # Note [Pybind11 ABI constants]
-    #
-    # Pybind11 before 2.4 used to build an ABI strings using the following pattern:
-    # f"__pybind11_internals_v{PYBIND11_INTERNALS_VERSION}{PYBIND11_INTERNALS_KIND}{PYBIND11_BUILD_TYPE}__"
-    # Since 2.4 compier type, stdlib and build abi parameters are also encoded like this:
-    # f"__pybind11_internals_v{PYBIND11_INTERNALS_VERSION}{PYBIND11_INTERNALS_KIND}{PYBIND11_COMPILER_TYPE}{PYBIND11_STDLIB}{PYBIND11_BUILD_ABI}{PYBIND11_BUILD_TYPE}__"
-    #
-    # This was done in order to further narrow down the chances of compiler ABI incompatibility
-    # that can cause a hard to debug segfaults.
-    # For PyTorch extensions we want to relax those restrictions and pass compiler, stdlib and abi properties
-    # captured during PyTorch native library compilation in torch/csrc/Module.cpp
-
-    for pname in ["COMPILER_TYPE", "STDLIB", "BUILD_ABI"]:
-        pval = getattr(torch._C, f"_PYBIND11_{pname}")
-        if pval is not None and not IS_WINDOWS:
-            common_cflags.append(f'-DPYBIND11_{pname}=\\"{pval}\\"')
+            
+    common_cflags += [f"{x}" for x in get_pybind11_abi_build_flags()]
 
     common_cflags += [f'-I{include}' for include in user_includes]
     common_cflags += [f'-isystem {include}' for include in system_includes]
 
-    common_cflags += ['-D_GLIBCXX_USE_CXX11_ABI=' + str(int(torch._C._GLIBCXX_USE_CXX11_ABI))]
+    common_cflags += [f"{x}" for x in get_glibcxx_abi_build_flags()]
 
     if IS_WINDOWS:
         cflags = common_cflags + COMMON_MSVC_FLAGS + ['/std:c++17'] + extra_cflags
