@@ -427,6 +427,25 @@ def _check_cuda_version(compiler_name: str, compiler_version: TorchVersion) -> N
                 f'Please make sure to use an adequate version of {compiler_name} ({version_bound_str}).'
             )
 
+def get_pybind11_abi_build_flags():
+    # Note [Pybind11 ABI constants]
+    #
+    # Pybind11 before 2.4 used to build an ABI strings using the following pattern:
+    # f"__pybind11_internals_v{PYBIND11_INTERNALS_VERSION}{PYBIND11_INTERNALS_KIND}{PYBIND11_BUILD_TYPE}__"
+    # Since 2.4 compier type, stdlib and build abi parameters are also encoded like this:
+    # f"__pybind11_internals_v{PYBIND11_INTERNALS_VERSION}{PYBIND11_INTERNALS_KIND}{PYBIND11_COMPILER_TYPE}{PYBIND11_STDLIB}{PYBIND11_BUILD_ABI}{PYBIND11_BUILD_TYPE}__"
+    #
+    # This was done in order to further narrow down the chances of compiler ABI incompatibility
+    # that can cause a hard to debug segfaults.
+    # For PyTorch extensions we want to relax those restrictions and pass compiler, stdlib and abi properties
+    # captured during PyTorch native library compilation in torch/csrc/Module.cpp 
+
+    abi_cflags = []
+    for pname in ["COMPILER_TYPE", "STDLIB", "BUILD_ABI"]:
+        pval = getattr(torch._C, f"_PYBIND11_{pname}")
+        if pval is not None and not IS_WINDOWS:
+            abi_cflags.append(f'-DPYBIND11_{pname}=\\"{pval}\\"')
+    return abi_cflags
 
 # See below for why we inherit BuildExtension from object.
 # https://stackoverflow.com/questions/1713038/super-fails-with-error-typeerror-argument-1-must-be-type-not-classobj-when
@@ -521,10 +540,8 @@ class BuildExtension(build_ext):
 
             self._add_compile_flag(extension, '-DTORCH_API_INCLUDE_EXTENSION_H')
             # See note [Pybind11 ABI constants]
-            for name in ["COMPILER_TYPE", "STDLIB", "BUILD_ABI"]:
-                val = getattr(torch._C, f"_PYBIND11_{name}")
-                if val is not None and not IS_WINDOWS:
-                    self._add_compile_flag(extension, f'-DPYBIND11_{name}="{val}"')
+            for abi_flag in get_pybind11_abi_build_flags():
+                self._add_compile_flag(extension, abi_flag)
             self._define_torch_extension_name(extension)
             self._add_gnu_cpp_abi_flag(extension)
 
@@ -1298,26 +1315,6 @@ def load(name,
         is_python_module,
         is_standalone,
         keep_intermediates=keep_intermediates)
-
-def get_pybind11_abi_build_flags():
-    # Note [Pybind11 ABI constants]
-    #
-    # Pybind11 before 2.4 used to build an ABI strings using the following pattern:
-    # f"__pybind11_internals_v{PYBIND11_INTERNALS_VERSION}{PYBIND11_INTERNALS_KIND}{PYBIND11_BUILD_TYPE}__"
-    # Since 2.4 compier type, stdlib and build abi parameters are also encoded like this:
-    # f"__pybind11_internals_v{PYBIND11_INTERNALS_VERSION}{PYBIND11_INTERNALS_KIND}{PYBIND11_COMPILER_TYPE}{PYBIND11_STDLIB}{PYBIND11_BUILD_ABI}{PYBIND11_BUILD_TYPE}__"
-    #
-    # This was done in order to further narrow down the chances of compiler ABI incompatibility
-    # that can cause a hard to debug segfaults.
-    # For PyTorch extensions we want to relax those restrictions and pass compiler, stdlib and abi properties
-    # captured during PyTorch native library compilation in torch/csrc/Module.cpp 
-
-    abi_cflags = []
-    for pname in ["COMPILER_TYPE", "STDLIB", "BUILD_ABI"]:
-        pval = getattr(torch._C, f"_PYBIND11_{pname}")
-        if pval is not None and not IS_WINDOWS:
-            abi_cflags.append(f'-DPYBIND11_{pname}=\\"{pval}\\"')
-    return abi_cflags
 
 def get_glibcxx_abi_build_flags():
     glibcxx_abi_cflags = ['-D_GLIBCXX_USE_CXX11_ABI=' + str(int(torch._C._GLIBCXX_USE_CXX11_ABI))]
