@@ -542,8 +542,11 @@ class BuildExtension(build_ext):
 
             self._add_compile_flag(extension, '-DTORCH_API_INCLUDE_EXTENSION_H')
             # See note [Pybind11 ABI constants]
-            for abi_flag in get_pybind11_abi_build_flags():
-                self._add_compile_flag(extension, abi_flag)
+            for name in ["COMPILER_TYPE", "STDLIB", "BUILD_ABI"]:
+                val = getattr(torch._C, f"_PYBIND11_{name}")
+                if val is not None and not IS_WINDOWS:
+                    self._add_compile_flag(extension, f'-DPYBIND11_{name}="{val}"')
+            
             self._define_torch_extension_name(extension)
             self._add_gnu_cpp_abi_flag(extension)
 
@@ -903,6 +906,7 @@ class BuildExtension(build_ext):
         return compiler, version
 
     def _add_compile_flag(self, extension, flag):
+        print("!!!!flag:", flag)
         extension.extra_compile_args = copy.deepcopy(extension.extra_compile_args)
         if isinstance(extension.extra_compile_args, dict):
             for args in extension.extra_compile_args.values():
