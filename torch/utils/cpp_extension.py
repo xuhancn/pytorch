@@ -1325,6 +1325,9 @@ def get_glibcxx_abi_build_flags():
 def check_precompiler_headers(extra_cflags,
                             extra_include_paths,
                             is_standalone=False):
+    if not IS_LINUX:
+        return
+    
     compiler = get_cxx_compiler()
     head_file = os.path.join(_TORCH_PATH, 'include', 'torch', 'extension.h')
     head_file_pch = os.path.join(_TORCH_PATH, 'include', 'torch', 'extension.h.gch')
