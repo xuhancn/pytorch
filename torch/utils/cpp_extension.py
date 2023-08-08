@@ -11,6 +11,8 @@ import sys
 import sysconfig
 import warnings
 import collections
+from pathlib import Path
+import errno
 
 import time
 import torch
@@ -1325,7 +1327,8 @@ def check_precompiler_headers(extra_cflags,
                             is_standalone=False):
     compiler = get_cxx_compiler()
     head_file = os.path.join(_TORCH_PATH, 'include', 'torch', 'extension.h')
-    head_file_pch = os.path.join(_TORCH_PATH, 'include', 'torch', 'extension.h.gch')    
+    head_file_pch = os.path.join(_TORCH_PATH, 'include', 'torch', 'extension.h.gch')
+    head_file_signature = os.path.join(_TORCH_PATH, 'include', 'torch', 'extension.h.sign')
     
     def listToString(s): 
         # initialize an empty string 
@@ -1335,6 +1338,55 @@ def check_precompiler_headers(extra_cflags,
             string += (element + ' ')
         # return string 
         return string 
+    
+    def format_precompiler_header_cmd(compiler, head_file, head_file_pch, common_cflags, extra_cflags, extra_include_paths):
+        return re.sub(
+            r"[ \n]+",
+            " ",
+            f"""
+                {compiler} -x c++-header {head_file} -o {head_file_pch} {extra_include_paths} {extra_cflags} {common_cflags}
+            """,
+        ).strip()
+        
+    def command_to_signature(cmd):
+        signature = cmd.replace(' ', '_')
+        return signature   
+    
+    def check_pch_signature_in_file(file_path, signature):
+        b_exist = os.path.isfile(file_path)
+        if b_exist is False:
+            return False
+
+        with open(file_path) as file:
+            # read all content of a file
+            content = file.read()
+            # check if string present in a file
+            if signature == content:
+                return True
+            else:
+                return False
+
+    def _create_if_not_exist(path_dir):
+        if not os.path.exists(path_dir):
+            try:
+                Path(path_dir).mkdir(parents=True, exist_ok=True)
+            except OSError as exc:  # Guard against race condition
+                if exc.errno != errno.EEXIST:
+                    raise RuntimeError("Fail to create path {}".format(path_dir))
+            
+    def write_pch_signature_to_file(file_path, pch_sign):
+        _create_if_not_exist(os.path.dirname(file_path))
+        with open(file_path, "w") as f:
+            f.write(pch_sign)
+            f.close()
+            
+    def build_precompile_header(pch_cmd):
+        print('!!!!!pch_cmd:{}.'.format(pch_cmd))
+        try:
+            subprocess.check_output(pch_cmd, shell=True, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            from .._inductor.exc import CppCompileError
+            raise CppCompileError(pch_cmd, e.output) from e 
     
     extra_cflags_str = listToString(extra_cflags)
     extra_include_paths_str = listToString(extra_include_paths)
@@ -1347,28 +1399,20 @@ def check_precompiler_headers(extra_cflags,
     common_cflags += [f"{x}" for x in get_pybind11_abi_build_flags()]
     common_cflags += [f"{x}" for x in get_glibcxx_abi_build_flags()]
     common_cflags_str = listToString(common_cflags)
-    
-    '''
-    c++ -x c++-header /home/xu/anaconda3/envs/xu_pytorch/lib/python3.11/site-packages/torch/include/torch/extension.h -o /home/xu/anaconda3/envs/xu_pytorch/lib/python3.11/site-packages/torch/include/torch/extension.h.gch -I/home/xu/anaconda3/envs/xu_pytorch/lib/python3.11/site-packages/torch/include/torch/csrc/api/include/ -I/home/xu/anaconda3/envs/xu_pytorch/include/python3.11/ -I/home/xu/anaconda3/envs/xu_pytorch/lib/python3.11/site-packages/torch/include -DTORCH_API_INCLUDE_EXTENSION_H -DPYBIND11_COMPILER_TYPE=\"_gcc\" -DPYBIND11_STDLIB=\"_libstdcpp\" -DPYBIND11_BUILD_ABI=\"_cxxabi1013\" -D_GLIBCXX_USE_CXX11_ABI=1 -fPIC -std=c++17 -Wno-unused-variable -O3 -ffast-math -fno-finite-math-only -march=native -fopenmp -Wall -DCPU_CAPABILITY_AVX2 -D C10_USING_CUSTOM_GENERATED_MACROS
-    '''
-    def format_precompiler_header_cmd(compiler, head_file, head_file_pch, common_cflags, extra_cflags, extra_include_paths):
-        return re.sub(
-            r"[ \n]+",
-            " ",
-            f"""
-                {compiler} -x c++-header {head_file} -o {head_file_pch} {extra_include_paths} {extra_cflags} {common_cflags}
-            """,
-        ).strip()
         
     pch_cmd = format_precompiler_header_cmd(compiler, head_file, head_file_pch, common_cflags_str, extra_cflags_str, extra_include_paths_str)
+    pch_sign = command_to_signature(pch_cmd)
+    # print('!!!!!pch_sign:{}.'.format(pch_sign))
     
     if os.path.isfile(head_file_pch) is not True:
-        print('!!!!!pch_cmd:{}.'.format(pch_cmd))
-        try:
-            subprocess.check_call(["sh", "-c" ,"{}".format(pch_cmd)])
-        except subprocess.CalledProcessError as e:
-            from .._inductor.exc import CppCompileError
-            raise CppCompileError(pch_cmd, e.output) from e
+        build_precompile_header(pch_cmd)
+        write_pch_signature_to_file(head_file_signature, pch_sign)
+    else:
+        b_same_sign = check_pch_signature_in_file(head_file_signature, pch_sign)
+        if b_same_sign is False:
+            build_precompile_header(pch_cmd)
+            write_pch_signature_to_file(head_file_signature, pch_sign)
+            
 
 def load_inline(name,
                 cpp_sources,
