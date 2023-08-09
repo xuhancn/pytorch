@@ -804,6 +804,8 @@ class WrapperCodeGen(CodeGen):
         self.reuses[output_buffer.get_name()] = input_buffer.get_name()
         self.writeline(ReuseLine(self, input_buffer, output_buffer))
 
+def cpp_wrapper_macro():    
+    return "-DCPP_WRAPPER_MODULE"
 
 class CppWrapperCodeGen(WrapperCodeGen):
     """
@@ -926,7 +928,7 @@ class CppWrapperCodeGen(WrapperCodeGen):
         optimization_flags = codecache.optimization_flags()
         use_custom_generated_macros = codecache.use_custom_generated_macros()
 
-        extra_cflags = f"{cpp_flags} {optimization_flags} {warning_all_flag} {macros} {use_custom_generated_macros}"
+        extra_cflags = f"{cpp_flags} {optimization_flags} {warning_all_flag} {macros} {use_custom_generated_macros} {cpp_wrapper_macro()}"
         extra_ldflags = f"{shared} {lpaths} {libs}"
         extra_include_paths = f"{ipaths}"
 

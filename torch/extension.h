@@ -1,6 +1,11 @@
 #pragma once
 
 // All pure C++ headers for the C++ frontend.
-#include <torch/all.h>
+// #include <torch/all.h>
 // Python bindings for the C++ frontend (includes Python.h).
 #include <torch/python.h>
+
+
+#ifdef CPP_WRAPPER_MODULE
+#include <torch/cpp_wrapper.h>
+#endif

@@ -580,7 +580,6 @@ def get_include_and_linking_paths(
     libs = " ".join(["-l" + p for p in libs])
     return ipaths, lpaths, libs, macros
 
-
 def cpp_compile_command(
     input,
     output,
@@ -600,7 +599,7 @@ def cpp_compile_command(
         f"""
             {cpp_compiler()} {input} {get_shared(shared)}
             {get_warning_all_flag(warning_all)} {cpp_flags()}
-            {ipaths} {lpaths} {libs} {macros}
+            {ipaths} {lpaths} {libs} {macros} 
             {optimization_flags()}
             {use_custom_generated_macros()}
             -o {output}

@@ -1599,13 +1599,15 @@ def _jit_compile(name,
     '''
     extra_cflags += ["-fuse-ld=lld"]
     extra_cflags += ["-v"] #
-    extra_cflags += ["-ftime-report"]
+    
     extra_ldflags += ["-fuse-ld=lld"]
     extra_ldflags += ["-v"]
-    extra_ldflags += ["-ftime-report"]
+    
     print('!!!!!extra_cflags:{}.'.format(extra_cflags))
     print('!!!!!extra_ldflags:{}.'.format(extra_ldflags))
     '''
+    # extra_cflags += ["-ftime-report"]
+    # extra_ldflags += ["-ftime-report"]
 
     if with_cuda is None:
         with_cuda = any(map(_is_cuda_file, sources))
