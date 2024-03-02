@@ -1431,6 +1431,11 @@ def get_include_and_linking_paths(
     return ipaths, lpaths_str, libs_str, macros, build_arch_flags
 
 
+def get_compile_verbose():
+    if os.getenv("BUILD_TIME") is not None:
+        return "-ftime-report"
+    return ""
+
 def cpp_compile_command(
     input: Union[str, List[str]],
     output: str,
@@ -1483,7 +1488,7 @@ def cpp_compile_command(
             {get_glibcxx_abi_build_flags()}
             {ipaths_str} {lpaths} {libs} {build_arch_flags}
             {macros} {linker_paths} {clang_flags}
-            {optimization_flags()}
+            {optimization_flags()} {get_compile_verbose()}
             {use_custom_generated_macros()}
             {use_fb_internal_macros()}
             {use_standard_sys_dir_headers()}
@@ -1811,7 +1816,9 @@ def compile_file(
                     os.remove(output_path)
                 shutil.copy(output_file_path, output_path)
         else:
-            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+            output = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+            if os.getenv("BUILD_TIME") is not None:
+                print(output.decode("utf-8"))
     except subprocess.CalledProcessError as e:
         output = e.output.decode("utf-8")
         openmp_problem = "'omp.h' file not found" in output or "libomp" in output
@@ -1872,6 +1879,7 @@ class CppCodeCache:
         key, input_path = write(source_code, "cpp", extra=cpp_command)
         if key not in cls.cache:
             from filelock import FileLock
+            import time
 
             lock_dir = get_lock_dir()
             lock = FileLock(os.path.join(lock_dir, key + ".lock"), timeout=LOCK_TIMEOUT)
@@ -1886,7 +1894,10 @@ class CppCodeCache:
                             **cls.cpp_compile_command_flags,
                         )
                     )
+                    start = time.time()
                     compile_file(input_path, output_path, cmd)
+                    end = time.time()
+                    print("!!!! compile_time: {}, {} - {}".format(end-start, input_path, output_path))
                 cls.cache[key] = cls._load_library(output_path, key)
                 cls.cache[key].key = key  # type: ignore[union-attr]
 
