@@ -1894,6 +1894,8 @@ class CppCodeCache:
                             **cls.cpp_compile_command_flags,
                         )
                     )
+                    if os.getenv("BUILD_CMD") is not None:
+                        print("!!!! compile_cmd: {}".format(cmd))
                     start = time.time()
                     compile_file(input_path, output_path, cmd)
                     end = time.time()
