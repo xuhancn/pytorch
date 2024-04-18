@@ -1039,6 +1039,8 @@ class CppBuilder:
         It is must need a temperary directory to store object files in Windows.
         After build completed, delete the temperary directory to save disk space.
         """
+        import time
+        start = time.time()
         _create_if_dir_not_exist(self._output_dir)
         _build_tmp_dir = os.path.join(
             self._output_dir, f"{self._name}_{_BUILD_TEMP_DIR}"
@@ -1046,8 +1048,11 @@ class CppBuilder:
         _create_if_dir_not_exist(_build_tmp_dir)
 
         build_cmd = self.get_command_line()
+        print("!!!! cmd: ", build_cmd)
 
         status = run_command_line(build_cmd, cwd=_build_tmp_dir)
+        end = time.time()
+        print("!!!! compile time: {}".format(end-start))
 
         _remove_dir(_build_tmp_dir)
         return status, self._target_file

@@ -1098,6 +1098,9 @@ cdll.LoadLibrary("__lib_path__")
 
     @functools.lru_cache(None)
     def __bool__(self) -> bool:
+        import time
+        print("!!!! bool entry: ", self.__str__())
+        start = time.time()
         from torch._inductor.cpp_builder import CppBuilder, CppTorchOptions
 
         if config.cpp.vec_isa_ok is not None:
@@ -1129,8 +1132,12 @@ cdll.LoadLibrary("__lib_path__")
                     env={**os.environ, "PYTHONPATH": ":".join(sys.path)},
                 )
             except Exception as e:
+                end = time.time()
+                print("!!!! False bool time: {}".format(end-start))
                 return False
 
+            end = time.time()
+            print("!!!! True bool time: {}".format(end-start))
             return True
 
 
@@ -1233,7 +1240,6 @@ def x86_isa_checker() -> List[str]:
 
 
 invalid_vec_isa = InvalidVecISA()
-supported_vec_isa_list = [VecAVX512(), VecAVX2()]
 
 
 # Cache the cpuinfo to avoid I/O overhead. Meanwhile, the cpuinfo content
@@ -1253,6 +1259,7 @@ def valid_vec_isa_list() -> List[VecISA]:
 
     isa_list = []
     _cpu_supported_isa = x86_isa_checker()
+    supported_vec_isa_list = [VecAVX512(), VecAVX2()]
     for isa in supported_vec_isa_list:
         if str(isa) in _cpu_supported_isa:
             isa_list.append(isa)
