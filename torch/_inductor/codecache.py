@@ -1277,14 +1277,11 @@ cdll.LoadLibrary("__lib_path__")
             try:
                 # Check if the output file exist, and compile when not.
                 output_path = x86_isa_help_builder.get_target_file_path()
-                print("!!! output_path: ", output_path)
                 if not os.path.isfile(output_path):
-                    compile_file(input_path, output_path, build_cmd)
+                    status, target_file = x86_isa_help_builder.build()
+                    if status:
+                        return False
 
-                # Check build result
-                status, target_file = x86_isa_help_builder.build()
-                if status:
-                    return False
                 subprocess.check_call(
                     [
                         sys.executable,
