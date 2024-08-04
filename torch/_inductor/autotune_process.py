@@ -787,6 +787,7 @@ class CUDABenchmarkRequest(GPUDeviceBenchmarkRequest):
 
     def cleanup_run_fn(self) -> None:
         if self.DLL is not None:
+            print("!!!!!!!!!!!!!!!!!!!!! cleanup_run_fn: ", self.DLL)
             self.DLL.close()
         self.workspace = None
 
