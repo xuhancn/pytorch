@@ -3451,13 +3451,8 @@ class DLLWrapper:
         f_FreeLibrary = None
 
         if _IS_WINDOWS and f_FreeLibrary is None:
-            import ctypes
-            from ctypes import wintypes
-            kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)    
-            kernel32.FreeLibrary.argtypes = [wintypes.HMODULE]
-
-            if hasattr(kernel32, "FreeLibrary"):
-                f_FreeLibrary = kernel32.FreeLibrary
+            import _ctypes
+            f_FreeLibrary = _ctypes.FreeLibrary
 
         if f_FreeLibrary is not None:
             f_FreeLibrary(self.DLL._handle)
