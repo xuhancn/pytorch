@@ -586,7 +586,10 @@ class DebugFormatter:
         )
 
     def output_code(self, filename: str, extension: str = "py") -> None:
-        shutil.copy(filename, self.filename(f"output_code.{extension}"))
+        src = filename
+        dst = self.filename(f"output_code.{extension}")
+        print(f"src: {src}, dst: {dst}")
+        shutil.copy(src=src, dst=dst)
 
     def log_autotuning_results(
         self,

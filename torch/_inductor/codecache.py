@@ -1738,6 +1738,7 @@ class AotCodeCompiler:
         with tempfile.NamedTemporaryFile("w+") as t:
             t.writelines((wrapper_code, "\n", kernel_code, "\n"))
             t.flush()
+            print("t.name: ", t.name)
             V.debug.output_code(t.name, extension="cpp")
 
         if config.aot_inductor.package:
