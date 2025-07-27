@@ -1847,6 +1847,28 @@ class AotCodeCompiler:
                 consts_asm += f"{symbol_prefix}_binary_constants_bin_end:\n"
                 return consts_asm, "S"
 
+            def format_consts_to_win32_asm(
+                consts: bytes,
+                align_bytes: int,
+            ) -> tuple[str, str]:
+                consts_asm = "option casemap:none\t\n"
+                consts_asm += ".data\t\n"
+                consts_asm += "_binary_constants_bin_start:\t\n"
+                consts_asm += f"align {align_bytes}\t\n"
+                consts_asm += "db "
+                count_bytes = 0
+                for c in consts:
+                    consts_asm += f"{c}, "
+                    count_bytes = count_bytes + 1
+                    if count_bytes % 16 == 0:
+                        consts_asm += "\t\n"
+                consts_asm += "_binary_constants_bin_end:\t\n"
+                consts_asm += f"align {align_bytes}\t\n"
+                consts_asm += "public _binary_constants_bin_start\t\n"
+                consts_asm += "public _binary_constants_bin_end\t\n"
+                consts_asm += "end\t\n"
+                return consts_asm, "asm"
+
             # Use c++ to convert consts to object file can support more compilers, such as msvc and icx.
             def format_consts_to_cpp(
                 consts: bytes, align_bytes: int, symbol_prefix: str
@@ -1873,9 +1895,14 @@ ATTRIBUTE_NO_SANITIZE_ADDRESS\t\n"""
                 return const_cpp, "cpp"
 
             if use_asm_build:
-                consts_code, code_ext = format_consts_to_gnu_asm(
-                    consts, ALIGN_BYTES, symbol_prefix, is_large_consts
-                )
+                if _IS_WINDOWS:
+                    consts_code, code_ext = format_consts_to_win32_asm(
+                        consts, ALIGN_BYTES
+                    )
+                else:
+                    consts_code, code_ext = format_consts_to_gnu_asm(
+                        consts, ALIGN_BYTES, symbol_prefix, is_large_consts
+                    )
             else:
                 consts_code, code_ext = format_consts_to_cpp(
                     consts, ALIGN_BYTES, symbol_prefix
