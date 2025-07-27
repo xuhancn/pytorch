@@ -1854,14 +1854,9 @@ class AotCodeCompiler:
                 consts_asm = "option casemap:none\t\n"
                 consts_asm += ".data\t\n"
                 consts_asm += "_binary_constants_bin_start:\t\n"
-                consts_asm += f"align {align_bytes}\t\n"
-                consts_asm += "db "
-                count_bytes = 0
+                consts_asm += f"align {align_bytes}\t\n" # nasm only support up to 16 align_bytes.
                 for c in consts:
-                    consts_asm += f"{c}, "
-                    count_bytes = count_bytes + 1
-                    if count_bytes % 16 == 0:
-                        consts_asm += "\t\n"
+                    consts_asm += f"db {c} \t\n"
                 consts_asm += "_binary_constants_bin_end:\t\n"
                 consts_asm += f"align {align_bytes}\t\n"
                 consts_asm += "public _binary_constants_bin_start\t\n"
