@@ -1823,7 +1823,7 @@ class AotCodeCompiler:
 
             is_large_consts = len(consts) > 1024
 
-            def format_consts_to_asm(
+            def format_consts_to_gnu_asm(
                 consts: bytes,
                 align_bytes: int,
                 symbol_prefix: str,
@@ -1873,7 +1873,7 @@ ATTRIBUTE_NO_SANITIZE_ADDRESS\t\n"""
                 return const_cpp, "cpp"
 
             if use_asm_build:
-                consts_code, code_ext = format_consts_to_asm(
+                consts_code, code_ext = format_consts_to_gnu_asm(
                     consts, ALIGN_BYTES, symbol_prefix, is_large_consts
                 )
             else:
