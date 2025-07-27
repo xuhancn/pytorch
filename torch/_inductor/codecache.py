@@ -1812,7 +1812,7 @@ class AotCodeCompiler:
             elif platform == "win32":
                 symbol_prefix = ""
                 # ASM build is not supported on Windows, force use CPP build.
-                use_asm_build = False
+                use_asm_build = True
             else:
                 raise RuntimeError(f"Unsupported platform: {platform}")
 
