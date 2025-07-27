@@ -1913,6 +1913,7 @@ ATTRIBUTE_NO_SANITIZE_ADDRESS\t\n"""
                 code_ext,
                 specified_dir=str(specified_sub_dir),
             )
+            print(consts_code)
             consts_s = Path(consts_s)
             object_build_options = CppTorchDeviceOptions(
                 device_type=device_type,
