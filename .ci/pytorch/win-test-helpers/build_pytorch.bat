@@ -46,6 +46,10 @@ call pip install mkl==2024.2.0 mkl-static==2024.2.0 mkl-include==2024.2.0
 if errorlevel 1 goto fail
 if not errorlevel 0 goto fail
 
+call pip install intel-openmp==2025.1.1
+if errorlevel 1 goto fail
+if not errorlevel 0 goto fail
+
 :: Override VS env here
 pushd .
 if "%VC_VERSION%" == "" (
