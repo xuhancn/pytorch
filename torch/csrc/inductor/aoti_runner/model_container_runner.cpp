@@ -110,6 +110,8 @@ consider rebuild your model with the latest AOTInductor.");
   size_t lastindex = model_so_path.find_last_of('.');
   std::string json_filename = model_so_path.substr(0, lastindex) + ".json";
 
+  printf("!!! debug has json: %s.\n", json_filename.c_str());
+
   if (file_exists(json_filename)) {
     proxy_executor_ = std::make_unique<torch::aot_inductor::OSSProxyExecutor>(
         json_filename, device_str == "cpu");
