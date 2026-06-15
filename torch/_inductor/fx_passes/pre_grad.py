@@ -325,7 +325,7 @@ def _resolve_pre_grad_fusion_options(
         devices = options.get("devices")
         if (
             devices is not None
-            and isinstance(devices, (list, tuple, set))
+            and isinstance(devices, (list, tuple, OrderedSet))
             and example_device_types.isdisjoint(OrderedSet(devices))
         ):
             continue
@@ -395,8 +395,9 @@ def pre_grad_passes(
                     [pattern_matcher_pass.pass_name]
                 )
                 # we support run same pattern multiple times, the default is to run only once
-                counter = fusion_options[pass_name].get("counter", 1)
-                for _ in range(int(counter)):
+                counter_raw = fusion_options[pass_name].get("counter", 1)
+                assert isinstance(counter_raw, int)  # noqa: S101
+                for _ in range(counter_raw):
                     pattern_matcher_pass.apply(gm.graph)  # type: ignore[arg-type]
                 if not is_same_dict(counters["inductor"], inductor_before_change):
                     trace_structured(
