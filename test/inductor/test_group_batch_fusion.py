@@ -809,6 +809,72 @@ class TestGroupBatchFusion(TestCase):
             )
             counters.clear()
 
+    @requires_gpu()
+    @torch._inductor.config.patch(
+        is_predispatch=True,
+        pre_grad_fusion_options={
+            "batch_linear_lhs": {"devices": (GPU_TYPE,), "min_fuse_set_size": 2},
+        },
+    )
+    def test_predispatch_device_aware_batch_linear_lhs(self):
+        # Verify that the predispatch path (_run_pre_dispatch_passes) routes
+        # through _resolve_pre_grad_fusion_options and applies device filtering.
+        # The default config has devices=("xpu",) which was previously bypassed
+        # in the predispatch path (review #181854#issuecomment-4705071437).
+        # This test uses devices=(GPU_TYPE,) to confirm the wrapper closure
+        # correctly resolves and filters fusion options.
+        z = 10
+        module = MyModule4(z, GPU_TYPE, has_bias=True)
+        input = [torch.randn(20, z, device=GPU_TYPE)]
+
+        counters.clear()
+        traced = torch.compile(module, fullgraph=True)
+        ref = module(*input)
+        res = traced(*input)
+        self.compare_pred(module, traced, input)
+        self.assertGreater(
+            counters["inductor"]["batch_linear_lhs"],
+            0,
+            "batch_linear_lhs should fire in predispatch mode when devices match GPU_TYPE",
+        )
+        self.assertTrue(torch.allclose(ref, res))
+        ref.sum().backward()
+        res.sum().backward()
+        self.compare_parameters(module, traced, rtol=1e-8, atol=1e-8)
+        self.compare_gradients(module, traced, rtol=1e-8, atol=1e-8)
+        counters.clear()
+
+    @torch._inductor.config.patch(
+        is_predispatch=True,
+        pre_grad_fusion_options={
+            "batch_linear_lhs": {"min_fuse_set_size": 2},
+        },
+    )
+    def test_predispatch_cpu_device_agnostic_batch_linear_lhs(self):
+        # Verify that the predispatch path correctly enables batch_linear_lhs
+        # when no "devices" key is present (user explicitly opts in).
+        # This test runs on CPU so it can be verified in local dev without GPU.
+        z = 10
+        module = MyModule4(z, "cpu", has_bias=True)
+        input = [torch.randn(20, z, device="cpu")]
+
+        counters.clear()
+        traced = torch.compile(module, fullgraph=True)
+        ref = module(*input)
+        res = traced(*input)
+        self.compare_pred(module, traced, input)
+        self.assertGreater(
+            counters["inductor"]["batch_linear_lhs"],
+            0,
+            "batch_linear_lhs should fire in predispatch mode when no devices key restricts it",
+        )
+        self.assertTrue(torch.allclose(ref, res))
+        ref.sum().backward()
+        res.sum().backward()
+        self.compare_parameters(module, traced, rtol=1e-8, atol=1e-8)
+        self.compare_gradients(module, traced, rtol=1e-8, atol=1e-8)
+        counters.clear()
+
 
 class TestBMMFusionModule(torch.nn.Module):
     def __init__(self) -> None:
