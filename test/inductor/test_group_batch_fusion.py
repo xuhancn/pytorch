@@ -698,12 +698,6 @@ class TestGroupBatchFusion(TestCase):
             "unbind_stack_aten_pass": {},
         },
     )
-    @requires_gpu()
-    @torch._inductor.config.patch(
-        pre_grad_fusion_options={
-            "batch_linear_lhs": {"min_fuse_set_size": 999}
-        },  # Disable auto-enable to test post-grad behavior
-    )
     def test_gate_fusion_post_grad(self):
         counters.clear()
         size = 20
