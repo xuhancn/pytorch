@@ -797,7 +797,7 @@ class TestGroupBatchFusion(TestCase):
             res = traced(*input)
             self.compare_pred(module, traced, input)
             self.assertGreater(counters["inductor"]["batch_linear_lhs"], 0)
-            self.assertTrue(torch.allclose(ref, res))
+            self.assertEqual(ref, res)
             ref.sum().backward()
             res.sum().backward()
             self.compare_parameters(module, traced, rtol=1e-8, atol=1e-8)
@@ -837,7 +837,7 @@ class TestGroupBatchFusion(TestCase):
             0,
             "batch_linear_lhs should fire in predispatch mode when devices match GPU_TYPE",
         )
-        self.assertTrue(torch.allclose(ref, res))
+        self.assertEqual(ref, res)
         ref.sum().backward()
         res.sum().backward()
         self.compare_parameters(module, traced, rtol=1e-8, atol=1e-8)
@@ -868,7 +868,7 @@ class TestGroupBatchFusion(TestCase):
             0,
             "batch_linear_lhs should fire in predispatch mode when no devices key restricts it",
         )
-        self.assertTrue(torch.allclose(ref, res))
+        self.assertEqual(ref, res)
         ref.sum().backward()
         res.sum().backward()
         self.compare_parameters(module, traced, rtol=1e-8, atol=1e-8)
