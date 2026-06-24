@@ -149,7 +149,11 @@ def _fuse_activations(code: str) -> str:
         ):
             assigns[stmt.targets[0].id] = stmt.value
 
-    def inline(node: ast.expr, seen: OrderedSet[str] = OrderedSet()) -> ast.expr:
+    _EMPTY_SET: OrderedSet[str] = OrderedSet()
+
+    def inline(node: ast.expr, seen: OrderedSet[str] | None = None) -> ast.expr:
+        if seen is None:
+            seen = _EMPTY_SET
         # Fully inline temporary assignments so the expression tree only refers
         # to function parameters (accum / read buffers) and literal constants.
         if isinstance(node, ast.Name) and node.id in assigns:
@@ -385,7 +389,7 @@ class CutlassEVTCodegen(CutlassEVTOpsMixIn):
         self.body: IndentedBuffer = IndentedBuffer(1)  # The body buffer for codegen
         self.var_counter: Iterator[int] = itertools.count()
         self.store_name_to_value: dict[str, OpsValue] = (
-            dict()
+            {}
         )  # Aliases for subexpression functors
         self.reads: OrderedSet[str] = OrderedSet([])
         # Used for creating example tensors
@@ -571,7 +575,7 @@ class CutlassEVTCodegen(CutlassEVTOpsMixIn):
         # Same length: direct comparison
         if len(left_list) == len(right_list):
             return all(
-                _provably_equal_or_zero(l, r) for l, r in zip(left_list, right_list)
+                _provably_equal_or_zero(lv, rv) for lv, rv in zip(left_list, right_list)
             )
         # Different lengths: allow compatible reshapes where trailing strides match.
         # This handles view/reshape between template output and consumer, e.g.,
