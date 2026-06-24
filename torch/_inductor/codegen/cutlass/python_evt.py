@@ -388,9 +388,9 @@ class CutlassEVTCodegen(CutlassEVTOpsMixIn):
         self.accumulator_node_name: str = accumulator_node_name  #
         self.body: IndentedBuffer = IndentedBuffer(1)  # The body buffer for codegen
         self.var_counter: Iterator[int] = itertools.count()
-        self.store_name_to_value: dict[str, OpsValue] = (
-            {}
-        )  # Aliases for subexpression functors
+        self.store_name_to_value: dict[
+            str, OpsValue
+        ] = {}  # Aliases for subexpression functors
         self.reads: OrderedSet[str] = OrderedSet([])
         # Used for creating example tensors
         self.var_name_to_buffer_name: dict[str, str] = {
