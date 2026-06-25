@@ -247,8 +247,6 @@ def get_device_cutlass_config(device_type: str):
     """Get device-specific CUTLASS config (xpu/cuda overrides general cutlass config)."""
     if device_type == "xpu":
         return config.xpu
-    elif device_type == "cuda":
-        return config.cuda
     from ...config import cutlass as inductor_cutlass_config
 
     return inductor_cutlass_config
