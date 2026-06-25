@@ -433,13 +433,7 @@ class CUTLASSGemmTemplate(CUTLASSTemplate, ABC):
     @property
     def _device_cutlass_config(self):
         """Get device-specific CUTLASS config (xpu/cuda overrides general cutlass config)."""
-        from ... import config as inductor_config
-
-        if self.device_type == "xpu":
-            return inductor_config.xpu
-        elif self.device_type == "cuda":
-            return inductor_config.cuda
-        return inductor_cutlass_config
+        return cutlass_utils.get_device_cutlass_config(self.device_type)
 
     def __init__(
         self,
@@ -1100,16 +1094,27 @@ class CUTLASSGemmTemplate(CUTLASSTemplate, ABC):
         self,
         res: "dict[str, cutlass_gemm_op.GemmOperation]",  # type: ignore[name-defined]  # noqa: F821
     ) -> "list[tuple[str, cutlass_gemm_op.GemmOperation]]":  # type: ignore[name-defined]  # noqa: F821
-        """Sort CUTLASS operations by predicted quality for this problem.
+        """Dispatch to device-specific sort implementation."""
+        if self.device_type == "xpu":
+            return self._sort_ops_xpu(res)
+        return self._sort_ops_cuda(res)
 
-        For XPU, uses a heuristic that penalizes tiles where tile_M > problem M
-        (wasting computation) and prefers larger tiles (better data reuse).
-        For other devices, uses the default alphabetical sort.
+    def _sort_ops_cuda(
+        self,
+        res: "dict[str, cutlass_gemm_op.GemmOperation]",  # type: ignore[name-defined]  # noqa: F821
+    ) -> "list[tuple[str, cutlass_gemm_op.GemmOperation]]":  # type: ignore[name-defined]  # noqa: F821
+        """Default alphabetical sort for CUDA."""
+        return sorted(res.items())
+
+    def _sort_ops_xpu(
+        self,
+        res: "dict[str, cutlass_gemm_op.GemmOperation]",  # type: ignore[name-defined]  # noqa: F821
+    ) -> "list[tuple[str, cutlass_gemm_op.GemmOperation]]":  # type: ignore[name-defined]  # noqa: F821
+        """XPU tile scoring heuristic.
+
+        Penalizes tiles where tile_M > problem M (wasting computation)
+        and prefers larger tiles (better data reuse).
         """
-        if self.device_type != "xpu":
-            return sorted(res.items())
-
-        # Get problem dimensions from output node
         try:
             sizes = self.output_node.get_size()
             from ...virtualized import V
@@ -1119,7 +1124,6 @@ class CUTLASSGemmTemplate(CUTLASSTemplate, ABC):
             return sorted(res.items())
 
         def _xpu_tile_score(item):
-            """Score tiles: lower is better. Penalize tile_M > M, prefer larger tiles."""
             name, op = item
             tile = op.tile_description.threadblock_shape
             tile_m, tile_n = tile[0], tile[1]
@@ -1127,7 +1131,6 @@ class CUTLASSGemmTemplate(CUTLASSTemplate, ABC):
             m_waste = max(0, tile_m - M) / max(tile_m, 1)
             # Prefer larger tile area (better data reuse, fewer workgroups)
             tile_area = tile_m * tile_n
-            # Score: penalize waste heavily, then prefer larger tiles
             return (m_waste, -tile_area, name)
 
         return sorted(res.items(), key=_xpu_tile_score)
