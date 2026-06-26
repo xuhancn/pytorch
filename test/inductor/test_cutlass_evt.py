@@ -456,10 +456,10 @@ return D""",
             reads, writes, renames, code = CutlassEVTCodegen.ir_to_evt_python_code(
                 "buf0",
                 [MockSchedulerNode(buf1)],
-                OrderedSet([]),
+                OrderedSet(["buf0"]),
             )
         self.assertExpectedInline(reads, """[]""")
-        self.assertExpectedInline(writes, """['buf0', 'buf1']""")
+        self.assertExpectedInline(writes, """['buf1']""")
         # _fuse_activations folds x/(1+exp(0.0-x)) into silu(x)
         self.assertExpectedInline(
             code,
