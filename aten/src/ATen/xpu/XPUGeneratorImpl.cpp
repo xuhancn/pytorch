@@ -42,8 +42,8 @@ void initXPUGenVector() {
           return getDefaultXPUGenerator(device_index).getIntrusivePtr();
         },
         // philoxState bridge
-        [](c10::GeneratorImpl* gen, uint64_t increment)
-            -> std::pair<uint64_t, uint64_t> {
+        [](c10::GeneratorImpl* gen,
+           uint64_t increment) -> std::pair<uint64_t, uint64_t> {
           auto* xpu_gen = static_cast<at::XPUGeneratorImpl*>(gen);
           auto [seed, offset] =
               at::xpu::philox::unpack(xpu_gen->philox_xpu_state(increment));
@@ -53,8 +53,8 @@ void initXPUGenVector() {
     // graph capture (Attention.cpp needs the extragraph buffer
     // addresses rather than unpacked values).
     xpu_hal::registerXPUGeneratorCaptureBridge(
-        [](c10::GeneratorImpl* gen, uint64_t increment)
-            -> xpu_hal::PhiloxCaptureState {
+        [](c10::GeneratorImpl* gen,
+           uint64_t increment) -> xpu_hal::PhiloxCaptureState {
           auto* xpu_gen = static_cast<at::XPUGeneratorImpl*>(gen);
           auto native_state = xpu_gen->philox_xpu_state(increment);
           xpu_hal::PhiloxCaptureState result;
@@ -84,8 +84,8 @@ void initXPUGenVector() {
                 return at::detail::empty_xpu(
                     size, dtype, device_opt, memory_format_opt);
               })),
-          reinterpret_cast<void*>(static_cast<DevicePropFn>(
-              []() -> c10::xpu::DeviceProp* {
+          reinterpret_cast<void*>(
+              static_cast<DevicePropFn>([]() -> c10::xpu::DeviceProp* {
                 return at::xpu::getCurrentDeviceProperties();
               })));
     }
