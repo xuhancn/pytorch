@@ -239,6 +239,8 @@ inductor_skips["xpu"] = {
 inductor_skips["xpu"]["lu"] = {f32}
 inductor_skips["xpu"]["nn.functional.linear"] = {f16}
 inductor_skips["xpu"]["masked.cumprod"] = {f16}
+# pytorch/pytorch: #178992
+inductor_skips["xpu"]["nn.functional.multi_margin_loss"] = {f32}
 
 inductor_expected_failures_single_sample = defaultdict(dict)
 
