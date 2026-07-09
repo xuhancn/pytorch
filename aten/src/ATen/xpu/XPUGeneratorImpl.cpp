@@ -73,21 +73,24 @@ void initXPUGenVector() {
     // empty_xpu + getCurrentDeviceProperties bridge — kernel DLLs
     // call these through xpu_hal.dll instead of linking torch_xpu.dll.
     {
+      using DeviceOptional = decltype(c10::TensorOptions().device_opt());
+      using MemoryFormatOptional =
+          decltype(c10::TensorOptions().memory_format_opt());
       using EmptyXpuFn = at::TensorBase (*)(
           c10::IntArrayRef,
           c10::ScalarType,
-          c10::optional<c10::Device>,
-          c10::optional<c10::MemoryFormat>);
+          DeviceOptional,
+          MemoryFormatOptional);
       using DevicePropFn = c10::xpu::DeviceProp* (*)();
       xpu_hal::registerTorchXpuBridge(
           reinterpret_cast<void*>(static_cast<EmptyXpuFn>(
               [](c10::IntArrayRef size,
                  c10::ScalarType dtype,
-                 c10::optional<c10::Device> device_opt,
-                 c10::optional<c10::MemoryFormat> memory_format_opt)
+                 DeviceOptional device_opt,
+                 MemoryFormatOptional memory_format_opt)
                   -> at::TensorBase {
                 return at::detail::empty_xpu(
-                    size, dtype, device_opt, memory_format_opt);
+                   size, dtype, device_opt, memory_format_opt);
               })),
           reinterpret_cast<void*>(
               static_cast<DevicePropFn>([]() -> c10::xpu::DeviceProp* {
