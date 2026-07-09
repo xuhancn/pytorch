@@ -58,10 +58,15 @@ void initXPUGenVector() {
           auto* xpu_gen = static_cast<at::XPUGeneratorImpl*>(gen);
           auto native_state = xpu_gen->philox_xpu_state(increment);
           xpu_hal::PhiloxCaptureState result;
+          result.captured_ = native_state.captured_;
           if (native_state.captured_) {
-            result.seed_ptr = native_state.seed_.ptr;
-            result.offset_ptr = native_state.offset_.ptr;
-            result.offset_intragraph = native_state.offset_intragraph_;
+            result.seed_.ptr = native_state.seed_.ptr;
+            result.offset_.ptr = native_state.offset_.ptr;
+            result.offset_intragraph_ = native_state.offset_intragraph_;
+          } else {
+            auto [seed, offset] = at::xpu::philox::unpack(native_state);
+            result.seed_.val = seed;
+            result.offset_.val = offset;
           }
           return result;
         });
