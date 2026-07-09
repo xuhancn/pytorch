@@ -6,6 +6,7 @@
 #include <ATen/xpu/XPUGeneratorImpl.h>
 #include <ATen/xpu/XPUGraph.h>
 #include <ATen/xpu/XPUGraphsUtils.h>
+#include <ATen/native/xpu/sycl/ResizeKernel.h>
 #include <c10/core/StreamGuard.h>
 #include <c10/util/CallOnce.h>
 #include <c10/xpu/XPUFunctions.h>
@@ -81,6 +82,11 @@ void initXPUGenVector() {
           c10::ScalarType,
           DeviceOptional,
           MemoryFormatOptional);
+      using ResizeImplXpuFn = at::TensorImpl* (*)(
+          at::TensorImpl*,
+          c10::IntArrayRef,
+          at::OptionalIntArrayRef,
+          bool);
       using DevicePropFn = c10::xpu::DeviceProp* (*)();
       xpu_hal::registerTorchXpuBridge(
           reinterpret_cast<void*>(static_cast<EmptyXpuFn>(
@@ -92,9 +98,17 @@ void initXPUGenVector() {
                 return at::detail::empty_xpu(
                    size, dtype, device_opt, memory_format_opt);
               })),
+          reinterpret_cast<void*>(static_cast<ResizeImplXpuFn>(
+              [](at::TensorImpl* self,
+                c10::IntArrayRef size,
+                at::OptionalIntArrayRef stride,
+                bool device_guard) -> at::TensorImpl* {
+               return at::native::xpu::resize_impl_xpu_(
+                   self, size, stride, device_guard);
+              })),
           reinterpret_cast<void*>(
               static_cast<DevicePropFn>([]() -> c10::xpu::DeviceProp* {
-                return at::xpu::getCurrentDeviceProperties();
+               return at::xpu::getCurrentDeviceProperties();
               })));
     }
     return true;
