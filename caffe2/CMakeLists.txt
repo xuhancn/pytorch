@@ -1211,6 +1211,7 @@ if(USE_XPU)
     # On BUILD_SEPARATE_OPS=ON, xpu_hal is a SHARED DLL in torch-xpu-ops;
     # on OFF, it is STATIC and compiled into torch_xpu_ops (already linked).
     if(TARGET xpu_hal)
+      target_compile_definitions(torch_xpu PRIVATE XPU_HAS_HAL_BRIDGE)
       target_link_libraries(torch_xpu PRIVATE xpu_hal)
     endif()
 

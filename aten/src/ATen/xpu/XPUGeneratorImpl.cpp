@@ -1,6 +1,7 @@
 #include <ATen/Functions.h>
 #include <ATen/Tensor.h>
 #include <ATen/Utils.h>
+#include <ATen/native/xpu/sycl/ResizeKernel.h>
 #include <ATen/xpu/EmptyTensor.h>
 #include <ATen/xpu/XPUContext.h>
 #include <ATen/xpu/XPUGeneratorImpl.h>
@@ -9,7 +10,9 @@
 #include <c10/core/StreamGuard.h>
 #include <c10/util/CallOnce.h>
 #include <c10/xpu/XPUFunctions.h>
+#if defined(XPU_HAS_HAL_BRIDGE)
 #include <hal/XPUHal.h>
+#endif
 #include <utility>
 
 constexpr uint64_t PHILOX_ROUND_SIZE = 4;
@@ -27,11 +30,11 @@ DeviceIndex num_gpus = -1;
 std::deque<c10::once_flag> xpu_gens_init_flag;
 std::vector<Generator> default_gens_xpu;
 
-// Bridge wrappers that allow kernel DLLs (in torch-xpu-ops) to call
-// generator functions via xpu_hal.dll instead of linking torch_xpu.dll.
-// This breaks the cyclic dependency in BUILD_SEPARATE_OPS builds.
-
 void initXPUGenVector() {
+#if defined(XPU_HAS_HAL_BRIDGE)
+  // Bridge wrappers that allow kernel DLLs (in torch-xpu-ops) to call
+  // generator functions via xpu_hal.dll instead of linking torch_xpu.dll.
+  // This breaks the cyclic dependency in BUILD_SEPARATE_OPS builds.
   static bool init_flag [[maybe_unused]] = []() {
     num_gpus = device_count();
     xpu_gens_init_flag.resize(num_gpus);
@@ -81,16 +84,27 @@ void initXPUGenVector() {
           c10::ScalarType,
           DeviceOptional,
           MemoryFormatOptional);
+      using ResizeImplXpuFn = at::TensorImpl* (*)(at::TensorImpl*,
+                                                  c10::IntArrayRef,
+                                                  at::OptionalIntArrayRef,
+                                                  bool);
       using DevicePropFn = c10::xpu::DeviceProp* (*)();
       xpu_hal::registerTorchXpuBridge(
           reinterpret_cast<void*>(static_cast<EmptyXpuFn>(
               [](c10::IntArrayRef size,
                  c10::ScalarType dtype,
                  DeviceOptional device_opt,
-                 MemoryFormatOptional memory_format_opt)
-                  -> at::TensorBase {
+                 MemoryFormatOptional memory_format_opt) -> at::TensorBase {
                 return at::detail::empty_xpu(
-                   size, dtype, device_opt, memory_format_opt);
+                    size, dtype, device_opt, memory_format_opt);
+              })),
+          reinterpret_cast<void*>(static_cast<ResizeImplXpuFn>(
+              [](at::TensorImpl* self,
+                 c10::IntArrayRef size,
+                 at::OptionalIntArrayRef stride,
+                 bool device_guard) -> at::TensorImpl* {
+                return at::native::xpu::resize_impl_xpu_(
+                    self, size, stride, device_guard);
               })),
           reinterpret_cast<void*>(
               static_cast<DevicePropFn>([]() -> c10::xpu::DeviceProp* {
@@ -99,6 +113,13 @@ void initXPUGenVector() {
     }
     return true;
   }();
+#else
+  // No xpu_hal bridge (old torch-xpu-ops). Initialize generator state
+  // directly; kernel DLLs resolve torch_xpu symbols via /FORCE:UNRESOLVED.
+  num_gpus = device_count();
+  xpu_gens_init_flag.resize(num_gpus);
+  default_gens_xpu.resize(num_gpus);
+#endif
 }
 
 } // anonymous namespace
