@@ -1,12 +1,12 @@
 #include <ATen/Functions.h>
 #include <ATen/Tensor.h>
 #include <ATen/Utils.h>
+#include <ATen/native/xpu/sycl/ResizeKernel.h>
 #include <ATen/xpu/EmptyTensor.h>
 #include <ATen/xpu/XPUContext.h>
 #include <ATen/xpu/XPUGeneratorImpl.h>
 #include <ATen/xpu/XPUGraph.h>
 #include <ATen/xpu/XPUGraphsUtils.h>
-#include <ATen/native/xpu/sycl/ResizeKernel.h>
 #include <c10/core/StreamGuard.h>
 #include <c10/util/CallOnce.h>
 #include <c10/xpu/XPUFunctions.h>
@@ -82,33 +82,31 @@ void initXPUGenVector() {
           c10::ScalarType,
           DeviceOptional,
           MemoryFormatOptional);
-      using ResizeImplXpuFn = at::TensorImpl* (*)(
-          at::TensorImpl*,
-          c10::IntArrayRef,
-          at::OptionalIntArrayRef,
-          bool);
+      using ResizeImplXpuFn = at::TensorImpl* (*)(at::TensorImpl*,
+                                                  c10::IntArrayRef,
+                                                  at::OptionalIntArrayRef,
+                                                  bool);
       using DevicePropFn = c10::xpu::DeviceProp* (*)();
       xpu_hal::registerTorchXpuBridge(
           reinterpret_cast<void*>(static_cast<EmptyXpuFn>(
               [](c10::IntArrayRef size,
                  c10::ScalarType dtype,
                  DeviceOptional device_opt,
-                 MemoryFormatOptional memory_format_opt)
-                  -> at::TensorBase {
+                 MemoryFormatOptional memory_format_opt) -> at::TensorBase {
                 return at::detail::empty_xpu(
-                   size, dtype, device_opt, memory_format_opt);
+                    size, dtype, device_opt, memory_format_opt);
               })),
           reinterpret_cast<void*>(static_cast<ResizeImplXpuFn>(
               [](at::TensorImpl* self,
-                c10::IntArrayRef size,
-                at::OptionalIntArrayRef stride,
-                bool device_guard) -> at::TensorImpl* {
-               return at::native::xpu::resize_impl_xpu_(
-                   self, size, stride, device_guard);
+                 c10::IntArrayRef size,
+                 at::OptionalIntArrayRef stride,
+                 bool device_guard) -> at::TensorImpl* {
+                return at::native::xpu::resize_impl_xpu_(
+                    self, size, stride, device_guard);
               })),
           reinterpret_cast<void*>(
               static_cast<DevicePropFn>([]() -> c10::xpu::DeviceProp* {
-               return at::xpu::getCurrentDeviceProperties();
+                return at::xpu::getCurrentDeviceProperties();
               })));
     }
     return true;
@@ -232,11 +230,9 @@ void XPUGeneratorState::replay_prologue(uint64_t wholegraph_increment) {
 }
 
 XPUGeneratorImpl::XPUGeneratorImpl(DeviceIndex device_index)
-    : GeneratorImpl{
-          Device(DeviceType::XPU, device_index),
-          DispatchKeySet(c10::DispatchKey::XPU)} {
+    : GeneratorImpl{Device(DeviceType::XPU, device_index), DispatchKeySet(c10::DispatchKey::XPU)},
+      state_(make_intrusive<XPUGeneratorState>()) {
   at::xpu::assertNotCapturing("Cannot construct a new XPUGeneratorImpl");
-  state_ = make_intrusive<XPUGeneratorState>();
 }
 
 XPUGeneratorImpl::XPUGeneratorImpl(
@@ -348,9 +344,12 @@ void XPUGeneratorImpl::set_philox_offset_per_thread(uint64_t offset) {
           at::xpu::currentStreamCaptureStatus() ==
           at::xpu::CaptureStatus::Executing)) {
     state_->philox_offset_per_thread_ = offset;
-  } else {
-    state_->offset_intragraph_ = offset;
+    return;
   }
+  TORCH_CHECK(
+      offset <= std::numeric_limits<uint32_t>::max(),
+      "offset must fit in uint32 during graph capture");
+  state_->offset_intragraph_ = static_cast<uint32_t>(offset);
 }
 
 uint64_t XPUGeneratorImpl::philox_offset_per_thread() const {
@@ -358,9 +357,8 @@ uint64_t XPUGeneratorImpl::philox_offset_per_thread() const {
           at::xpu::currentStreamCaptureStatus() ==
           at::xpu::CaptureStatus::Executing)) {
     return state_->philox_offset_per_thread_;
-  } else {
-    return state_->offset_intragraph_;
   }
+  return state_->offset_intragraph_;
 }
 
 void XPUGeneratorImpl::register_graph(xpu::XPUGraphImpl* graph) {
@@ -381,14 +379,16 @@ void XPUGeneratorImpl::unregister_graph(xpu::XPUGraphImpl* graph) {
 PhiloxXpuState XPUGeneratorImpl::philox_xpu_state(uint64_t increment) {
   if (at::xpu::currentStreamCaptureStatus() !=
       at::xpu::CaptureStatus::Executing) {
-    uint32_t offset = state_->offset_intragraph_;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    const auto offset = state_->offset_intragraph_;
     state_->increase(increment);
     return PhiloxXpuState(
         state_->seed_extragraph_.data_ptr<int64_t>(),
         state_->offset_extragraph_.data_ptr<int64_t>(),
         offset);
   } else {
-    uint64_t offset = state_->philox_offset_per_thread_;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    const auto offset = state_->philox_offset_per_thread_;
     state_->increase(increment);
     return PhiloxXpuState(state_->seed_, offset);
   }
@@ -398,7 +398,8 @@ std::pair<uint64_t, uint64_t> XPUGeneratorImpl::philox_engine_inputs(
     uint64_t increment) {
   at::xpu::assertNotCapturing(
       "Refactor this op to use XPUGeneratorImpl::philox_xpu_state. Cannot call XPUGeneratorImpl::philox_engine_inputs");
-  uint64_t offset = state_->philox_offset_per_thread_;
+  // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+  const auto offset = state_->philox_offset_per_thread_;
   state_->increase(increment);
   return std::make_pair(state_->seed_, offset);
 }
