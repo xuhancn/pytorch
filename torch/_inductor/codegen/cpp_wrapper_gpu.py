@@ -1268,6 +1268,9 @@ class CppWrapperGpu(CppWrapperCpu):
         def _parse_idx(arg: str) -> int:
             return int(arg.rstrip("Ll"))
 
+        if V.graph.device_type == "xpu":
+            # XPU: events are implicit via in-order SYCL queue; skip CUDA event calls
+            return True
         self._ensure_aoti_stream_helpers_emitted()
         event_idx = _parse_idx(args[0])
         if op == "record_event":
