@@ -1211,6 +1211,8 @@ class CppWrapperGpu(CppWrapperCpu):
             raise NotImplementedError(
                 "Multi-stream cpp_wrapper codegen is only supported for AOTI."
             )
+        if V.graph.device_type == "xpu":
+            return  # SYCL in-order queue handles events implicitly
         self._ensure_aoti_stream_helpers_emitted()
         code.writeline(
             f"_aoti_aux_stream_cache.ensure({num_streams}, this->device_idx_, stream);"
@@ -1237,7 +1239,7 @@ class CppWrapperGpu(CppWrapperCpu):
     def codegen_enter_cuda_stream_context(
         self, code: IndentedBuffer, stream_idx: int
     ) -> None:
-        if stream_idx == 0:
+        if stream_idx == 0 or V.graph.device_type == "xpu":
             return
         code.writeline(
             "_aoti_current_stream_guard = "
@@ -1246,6 +1248,8 @@ class CppWrapperGpu(CppWrapperCpu):
         )
 
     def codegen_exit_cuda_stream_context(self, code: IndentedBuffer) -> None:
+        if V.graph.device_type == "xpu":
+            return
         code.writeline("_aoti_current_stream_guard.reset();")
 
     def _stream_expr_for_idx(self, stream_idx: int) -> str:
@@ -1256,6 +1260,8 @@ class CppWrapperGpu(CppWrapperCpu):
     def _emit_stream_op_inline(self, kernel_name: str | None, args: list[str]) -> bool:
         if kernel_name is None or not V.graph.aot_mode:
             return False
+        if V.graph.device_type == "xpu":
+            return False  # SYCL in-order queue handles events implicitly
         if kernel_name in AOTI_UNSUPPORTED_STREAM_OP_REASONS:
             raise NotImplementedError(
                 f"{kernel_name} is not supported in AOTI cpp_wrapper. "
